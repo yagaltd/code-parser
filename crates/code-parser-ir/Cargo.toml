@@ -1,0 +1,9 @@
+[package]
+name = "code-parser-ir"
+version = "0.1.0"
+edition = "2021"
+description = "FileParseIR types for code-parser — zero heavy deps"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

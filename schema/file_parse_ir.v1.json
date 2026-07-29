@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://code-parser.dev/schema/file_parse_ir.v1.json",
+  "title": "FileParseIR",
+  "description": "Version 1 of the code-parser file IR output — one per parsed source file.",
+  "type": "object",
+  "required": [
+    "ir_version",
+    "path",
+    "language",
+    "content_hash",
+    "byte_len",
+    "line_count",
+    "symbols",
+    "calls",
+    "imports",
+    "diagnostics"
+  ],
+  "properties": {
+    "ir_version": { "type": "integer", "const": 1 },
+    "path": { "type": "string" },
+    "language": { "type": "string" },
+    "content_hash": { "type": "string" },
+    "byte_len": { "type": "integer", "minimum": 0 },
+    "line_count": { "type": "integer", "minimum": 0 },
+    "symbols": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/SymbolIR" }
+    },
+    "calls": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/CallIR" }
+    },
+    "imports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ImportIR" }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/DiagnosticIR" }
+    }
+  },
+
+  "$defs": {
+    "SymbolIR": {
+      "type": "object",
+      "required": [
+        "local_key", "name", "qualified_name", "kind",
+        "start_line", "end_line", "start_byte", "end_byte",
+        "signature", "parameters", "return_type", "docstring"
+      ],
+      "properties": {
+        "local_key": { "type": "string" },
+        "name": { "type": "string" },
+        "qualified_name": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "Function", "Method", "Class", "Struct", "Interface",
+            "Enum", "Trait", "TypeAlias", "Module", "Namespace",
+            "Constant", "Variable", "Macro"
+          ]
+        },
+        "start_line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 },
+        "start_byte": { "type": ["integer", "null"], "minimum": 0 },
+        "end_byte": { "type": ["integer", "null"], "minimum": 0 },
+        "signature": { "type": ["string", "null"] },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ParameterIR" }
+        },
+        "return_type": { "type": ["string", "null"] },
+        "docstring": { "type": ["string", "null"] }
+      }
+    },
+    "ParameterIR": {
+      "type": "object",
+      "required": ["name", "type_annotation", "default_value"],
+      "properties": {
+        "name": { "type": "string" },
+        "type_annotation": { "type": ["string", "null"] },
+        "default_value": { "type": ["string", "null"] }
+      }
+    },
+    "CallIR": {
+      "type": "object",
+      "required": [
+        "caller_local_key", "callee_name",
+        "callee_local_key", "callee_file", "callee_external",
+        "line", "column"
+      ],
+      "properties": {
+        "caller_local_key": { "type": "string" },
+        "callee_name": { "type": "string" },
+        "callee_local_key": { "type": ["string", "null"] },
+        "callee_file": { "type": ["string", "null"] },
+        "callee_external": { "type": "boolean" },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "ImportIR": {
+      "type": "object",
+      "required": ["import_name", "target_module", "kind", "line", "column"],
+      "properties": {
+        "import_name": { "type": "string" },
+        "target_module": { "type": "string" },
+        "kind": { "type": "string", "enum": ["Named", "Default", "Star"] },
+        "line": { "type": ["integer", "null"], "minimum": 1 },
+        "column": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "DiagnosticIR": {
+      "type": "object",
+      "required": ["severity", "message", "line", "byte_span"],
+      "properties": {
+        "severity": { "type": "string", "enum": ["Error", "Warning"] },
+        "message": { "type": "string" },
+        "line": { "type": ["integer", "null"], "minimum": 1 },
+        "byte_span": {
+          "type": ["array", "null"],
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

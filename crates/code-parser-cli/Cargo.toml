@@ -1,0 +1,20 @@
+[package]
+name = "code-parser-cli"
+version = "0.1.0"
+edition = "2021"
+description = "CLI for code-parser — parse, parse-repo, watch"
+
+[dependencies]
+code-parser-core = { path = "../code-parser-core" }
+code-parser-ir = { path = "../code-parser-ir" }
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+serde_json = "1"
+
+[features]
+default = ["rust"]
+rust = ["code-parser-core/rust"]
+typescript = ["code-parser-core/typescript"]
+python = ["code-parser-core/python"]
+javascript = ["code-parser-core/javascript"]
+watcher = ["code-parser-core/watcher"]

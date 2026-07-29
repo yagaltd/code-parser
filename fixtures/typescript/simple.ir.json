@@ -1,0 +1,174 @@
+{
+    "ir_version": 1,
+    "path": "fixtures/typescript/simple.ts",
+    "language": "TypeScript",
+    "content_hash": "de5a570ae046d0ef5b8ccf85d9d2462a53d7314e8f8f5d5e5752048b73bc3181",
+    "byte_len": 566,
+    "line_count": 30,
+    "symbols": [
+        {
+            "local_key": "Greeter",
+            "name": "Greeter",
+            "qualified_name": "Greeter",
+            "kind": "Interface",
+            "start_line": 4,
+            "end_line": 6,
+            "start_byte": 68,
+            "end_byte": 122,
+            "signature": null,
+            "parameters": [],
+            "return_type": null,
+            "docstring": null
+        },
+        {
+            "local_key": "Person",
+            "name": "Person",
+            "qualified_name": "Person",
+            "kind": "Class",
+            "start_line": 8,
+            "end_line": 18,
+            "start_byte": 124,
+            "end_byte": 345,
+            "signature": null,
+            "parameters": [],
+            "return_type": null,
+            "docstring": null
+        },
+        {
+            "local_key": "Person.constructor",
+            "name": "constructor",
+            "qualified_name": "Person.constructor",
+            "kind": "Method",
+            "start_line": 11,
+            "end_line": 13,
+            "start_byte": 189,
+            "end_byte": 248,
+            "signature": "constructor(name: string)",
+            "parameters": [
+                {
+                    "name": "name",
+                    "type_annotation": ": string",
+                    "default_value": null
+                }
+            ],
+            "return_type": null,
+            "docstring": null
+        },
+        {
+            "local_key": "Person.greet",
+            "name": "greet",
+            "qualified_name": "Person.greet",
+            "kind": "Method",
+            "start_line": 15,
+            "end_line": 17,
+            "start_byte": 254,
+            "end_byte": 343,
+            "signature": "greet(person: string): string",
+            "parameters": [
+                {
+                    "name": "person",
+                    "type_annotation": ": string",
+                    "default_value": null
+                }
+            ],
+            "return_type": ": string",
+            "docstring": null
+        },
+        {
+            "local_key": "makeGreeter",
+            "name": "makeGreeter",
+            "qualified_name": "makeGreeter",
+            "kind": "Function",
+            "start_line": 20,
+            "end_line": 22,
+            "start_byte": 347,
+            "end_byte": 423,
+            "signature": "function makeGreeter(name: string): Greeter",
+            "parameters": [
+                {
+                    "name": "name",
+                    "type_annotation": ": string",
+                    "default_value": null
+                }
+            ],
+            "return_type": ": Greeter",
+            "docstring": null
+        },
+        {
+            "local_key": "greet",
+            "name": "greet",
+            "qualified_name": "greet",
+            "kind": "Function",
+            "start_line": 24,
+            "end_line": 24,
+            "start_byte": 425,
+            "end_byte": 478,
+            "signature": "(name: string): string =>",
+            "parameters": [
+                {
+                    "name": "name",
+                    "type_annotation": ": string",
+                    "default_value": null
+                }
+            ],
+            "return_type": ": string",
+            "docstring": null
+        },
+        {
+            "local_key": "p",
+            "name": "p",
+            "qualified_name": "p",
+            "kind": "Constant",
+            "start_line": 26,
+            "end_line": 26,
+            "start_byte": 480,
+            "end_byte": 510,
+            "signature": null,
+            "parameters": [],
+            "return_type": null,
+            "docstring": null
+        }
+    ],
+    "calls": [
+        {
+            "caller_local_key": "makeGreeter",
+            "callee_name": "new Person",
+            "callee_local_key": null,
+            "callee_file": null,
+            "callee_external": false,
+            "line": 21,
+            "column": 11
+        }
+    ],
+    "imports": [
+        {
+            "import_name": "add",
+            "target_module": "./math",
+            "kind": "Named",
+            "line": 1,
+            "column": 0
+        },
+        {
+            "import_name": "User",
+            "target_module": "./types",
+            "kind": "Named",
+            "line": 2,
+            "column": 0
+        },
+        {
+            "import_name": "add",
+            "target_module": "./math",
+            "kind": "Named",
+            "line": 1,
+            "column": 0
+        },
+        {
+            "import_name": "User",
+            "target_module": "./types",
+            "kind": "Named",
+            "line": 2,
+            "column": 0
+        }
+    ],
+    "diagnostics": []
+}
