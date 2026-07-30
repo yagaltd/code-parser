@@ -86,12 +86,15 @@ Cos `domain_code` maps these onto payloads/indexes under ingest policy (store/le
 ## Library usage
 
 ```rust
-use code_parser_core::{parse_file, parse_repo, HashCache};
+use code_parser_core::{parse_file, parse_file_bytes, parse_repo, HashCache};
 
 // Single file — IR always includes cards.
 let result = parse_file(Path::new("src/main.rs"))?;
 println!("{} symbols", result.ir.symbols.len());
 println!("{}", result.ir.retrieval_card.text);
+
+// Bytes-in (no filesystem read) — primary entry point for downstream pipelines.
+let ir = parse_file_bytes("src/main.rs", &source_bytes)?;
 
 // Whole repo with cross-file resolution.
 let results = parse_repo(Path::new("."), None)?;
