@@ -27,6 +27,9 @@ enum Command {
         /// Emit IR as JSON to stdout.
         #[arg(long)]
         json: bool,
+        /// Print only the file retrieval card text (debug).
+        #[arg(long)]
+        card_only: bool,
     },
     /// Parse all source files in a directory.
     ParseRepo {
@@ -58,18 +61,20 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Parse { file, json } => cmd_parse(file, json),
+        Command::Parse { file, json, card_only } => cmd_parse(file, json, card_only),
         Command::ParseRepo { dir, jsonl, languages } => cmd_parse_repo(dir, jsonl, languages),
         Command::Watch { dir, emit: _ } => cmd_watch(dir),
         Command::Check { file } => cmd_check(file),
     }
 }
 
-fn cmd_parse(file: PathBuf, json: bool) -> anyhow::Result<()> {
+fn cmd_parse(file: PathBuf, json: bool, card_only: bool) -> anyhow::Result<()> {
     let result = code_parser_core::parse_file(&file)
         .with_context(|| format!("Failed to parse {}", file.display()))?;
 
-    if json {
+    if card_only {
+        println!("{}", result.ir.retrieval_card.text);
+    } else if json {
         let output = serde_json::to_string_pretty(&result.ir)?;
         println!("{output}");
     } else {

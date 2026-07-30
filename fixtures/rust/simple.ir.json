@@ -1,5 +1,5 @@
 {
-  "ir_version": 1,
+  "ir_version": 2,
   "path": "fixtures/rust/simple.rs",
   "language": "Rust",
   "content_hash": "f8506d3f55aaacd2ce1812038ffe901d3bdba56d6ff66eb2f3a12b4a37e7a09c",
@@ -98,5 +98,27 @@
       "column": 0
     }
   ],
-  "diagnostics": []
+  "diagnostics": [],
+  "retrieval_card": {
+    "card_version": 1,
+    "est_tokens": 69,
+    "text": "FILE path=fixtures/rust/simple.rs lang=Rust lines=17 hash=f8506d3f\nIMPORTS std::collections\nSYMBOLS\n  Function main L13-16 sig=fn main()\n  Method Cache::get L8-10 sig=fn get(&self, key: &str) -> Option<&User>\n  Struct Cache L3-5\nCALLS_OUT c.get×1 self.data.get×1\nPUB Cache"
+  },
+  "symbol_cards": [
+    {
+      "card_version": 1,
+      "est_tokens": 16,
+      "text": "SYM path=fixtures/rust/simple.rs qname=Cache kind=Struct L3-5"
+    },
+    {
+      "card_version": 1,
+      "est_tokens": 34,
+      "text": "SYM path=fixtures/rust/simple.rs qname=Cache::get kind=Method L8-10\nSIG fn get(&self, key: &str) -> Option<&User>\nCALLS self.data.get"
+    },
+    {
+      "card_version": 1,
+      "est_tokens": 23,
+      "text": "SYM path=fixtures/rust/simple.rs qname=main kind=Function L13-16\nSIG fn main()\nCALLS c.get"
+    }
+  ]
 }

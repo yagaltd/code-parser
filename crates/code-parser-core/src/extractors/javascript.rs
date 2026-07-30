@@ -29,7 +29,7 @@ impl LanguageExtractor for JavaScriptExtractor {
         resolve_in_file(&mut ctx);
 
         FileParseIR {
-            ir_version: 1,
+            ir_version: 2,
             path: file_path.to_string(),
             language: Language::JavaScript.as_str().to_string(),
             content_hash,
@@ -38,6 +38,8 @@ impl LanguageExtractor for JavaScriptExtractor {
             symbols: ctx.symbols,
             calls: ctx.calls,
             imports: ctx.imports,
+            retrieval_card: Default::default(),
+            symbol_cards: Vec::new(),
             diagnostics: ctx.diagnostics,
         }
     }
@@ -893,12 +895,13 @@ console.log("done");
         let mut expected_ir: FileParseIR =
             serde_json::from_str(expected_json).expect("valid golden JSON");
 
-        golden::validate_schema(&actual_ir).expect("actual IR violates schema");
-        golden::validate_schema(&expected_ir).expect("golden IR violates schema");
-
+        // Rebuild cards with cleared hash, then validate card invariants.
         golden::normalize_for_compare(&mut expected_ir);
         let mut actual_norm = actual_ir.clone();
         golden::normalize_for_compare(&mut actual_norm);
+
+        golden::validate_schema(&actual_norm).expect("actual IR violates schema");
+        golden::validate_schema(&expected_ir).expect("golden IR violates schema");
 
         assert_eq!(
             serde_json::to_string_pretty(&actual_norm).unwrap(),

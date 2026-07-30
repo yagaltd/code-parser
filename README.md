@@ -1,11 +1,13 @@
 # code-parser
 
-Tree-sitter engine that parses source files into versioned `FileParseIR` — symbols, calls, imports, and diagnostics — for consumption by downstream code indexes.
+Tree-sitter engine that parses source files into versioned `FileParseIR` — symbols, calls, imports, diagnostics, and **always-present mechanical retrieval cards** — for consumption by downstream code indexes (e.g. CognitiveOS `domain_code`).
+
+Parser always emits cards. Cos / domain chooses whether to store, lex, embed, or ignore them (ingest policy). There is no “parse without cards” mode.
 
 ## Components
 
-- `crates/code-parser-ir` — IR types + serde, zero heavy deps
-- `crates/code-parser-core` — tree-sitter engine: parse, extract, resolve, watch, hash cache
+- `crates/code-parser-ir` — IR types + serde + card builders (zero heavy deps)
+- `crates/code-parser-core` — tree-sitter engine: parse, extract, resolve, cards, watch, hash cache
 - `crates/code-parser-cli` — thin CLI (`parse`, `parse-repo`, `watch`, `check`)
 
 ## Supported languages
@@ -25,8 +27,11 @@ Each language is feature-gated. Build only what you need.
 # Build with all languages
 cargo build --features rust,typescript,javascript,python
 
-# Parse a single file → JSON
+# Parse a single file → JSON (includes retrieval_card + symbol_cards)
 cargo run -- parse src/main.rs --json
+
+# Print only the file retrieval card (debug)
+cargo run -- parse src/main.rs --card-only
 
 # Parse a whole repo → newline-delimited JSON
 cargo run -- parse-repo . --languages rust --jsonl
@@ -38,33 +43,55 @@ cargo run --features watcher -- watch . --emit jsonl
 cargo run -- check src/main.rs
 ```
 
-## IR shape
+## IR shape (`ir_version`: 2)
 
-One JSON object per file:
+One JSON object per file. Cards are required fields built after extract+resolve:
 
 ```json
 {
-  "ir_version": 1,
+  "ir_version": 2,
   "path": "src/main.rs",
   "language": "Rust",
   "content_hash": "<blake3>",
-  "symbols": [{ "local_key": "main", "name": "main", "kind": "Function", "start_line": 1, ... }],
-  "calls":    [{ "caller_local_key": "main", "callee_name": "println", "line": 2, ... }],
-  "imports":  [{ "import_name": "HashMap", "target_module": "std::collections", "kind": "Named", ... }],
-  "diagnostics": []
+  "byte_len": 128,
+  "line_count": 10,
+  "symbols": [{ "local_key": "main", "name": "main", "kind": "Function", "start_line": 1 }],
+  "calls":    [{ "caller_local_key": "main", "callee_name": "println", "line": 2 }],
+  "imports":  [{ "import_name": "HashMap", "target_module": "std::collections", "kind": "Named" }],
+  "diagnostics": [],
+  "retrieval_card": {
+    "card_version": 1,
+    "est_tokens": 42,
+    "text": "FILE path=src/main.rs lang=Rust lines=10 hash=abcd1234\nIMPORTS …\nSYMBOLS\n  …"
+  },
+  "symbol_cards": [
+    { "card_version": 1, "est_tokens": 12, "text": "SYM path=src/main.rs qname=main kind=Function L1-3\n…" }
+  ]
 }
 ```
 
-See `fixtures/` for per-language golden examples and `schema/file_parse_ir.v1.json` for the full schema.
+Invariant: `symbol_cards.len() == symbols.len()`.
+
+See `fixtures/*/simple.ir.json` and `schema/file_parse_ir.v2.json`. Legacy `schema/file_parse_ir.v1.json` remains for old dumps only.
+
+## Retrieval cards
+
+Mechanical, deterministic text for Lex / optional later ANN — **not** Cos nodes:
+
+- **File card** — path, lang, hash, imports, symbol outline, call histogram, pub names (capped ~2k chars)
+- **Symbol card** — one per symbol: qname, kind, lines, sig, doc snippet, local calls
+
+Cos `domain_code` maps these onto payloads/indexes under ingest policy (store/lex/promote children). Parser does not know about CognitiveOS nodes.
 
 ## Library usage
 
 ```rust
 use code_parser_core::{parse_file, parse_repo, HashCache};
 
-// Single file.
+// Single file — IR always includes cards.
 let result = parse_file(Path::new("src/main.rs"))?;
 println!("{} symbols", result.ir.symbols.len());
+println!("{}", result.ir.retrieval_card.text);
 
 // Whole repo with cross-file resolution.
 let results = parse_repo(Path::new("."), None)?;
@@ -90,7 +117,7 @@ Method calls, field chains, and trait resolution are out of scope for V1.
 cargo test --features rust,typescript,javascript,python --all
 ```
 
-Golden fixtures in `fixtures/` are compared structurally on every test run. Volatile fields (byte offsets, columns, content hash) are excluded from comparison.
+Golden fixtures in `fixtures/` are compared structurally on every test run. Volatile fields (byte offsets, columns, content hash) are excluded; cards are rebuilt with hash cleared so FILE `hash=` line is stable.
 
 ## License
 

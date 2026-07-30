@@ -415,28 +415,28 @@ Replicate denylist string list in code-parser (card) and domain_code (call promo
 
 ### code-parser
 
-- [ ] A0: `RetrievalCard` (required on IR) + `CardFormat` knobs + pure builders
-- [ ] A0: noise denylist + sort/cap helpers + unit tests (no tree-sitter)
-- [ ] A1: **always** build file + symbol cards after resolve (no skip API)
-- [ ] A1: update goldens + schema `file_parse_ir`
-- [ ] A1: CLI `--card-only` debug only (no `--no-cards`)
-- [ ] Docs: README — parser always emits cards; Cos decides use
+- [x] A0: `RetrievalCard` (required on IR) + `CardFormat` knobs + pure builders
+- [x] A0: noise denylist + sort/cap helpers + unit tests (no tree-sitter)
+- [x] A1: **always** build file + symbol cards after resolve (no skip API)
+- [x] A1: update goldens + schema `file_parse_ir.v2.json`
+- [x] A1: CLI `--card-only` debug only (no `--no-cards`)
+- [x] Docs: README — parser always emits cards; Cos decides use
 
 ### domain_code
 
-- [ ] B0: payload card fields; map from IR under `CardIngestOpts`
-- [ ] B1: `apply_ingest_hooks` lex from cards when `lex_*` true (default on)
-- [ ] C0: `IngestPolicy` on `IngestOpts`; default promote Always
-- [ ] C1: tiered promote + tests (tiny vs rich fixture)
-- [ ] C1: call promote `ResolvedOrNonNoise`
+- [x] B0: payload card fields; map from IR under `CardIngestOpts`
+- [x] B1: `apply_ingest_hooks` lex from cards when `lex_*` true (default on)
+- [x] C0: `IngestPolicy` on `IngestOpts`; default promote Always
+- [x] C1: tiered promote + tests (tiny vs rich fixture)
+- [x] C1: call promote `ResolvedOrNonNoise`
 - [ ] Update `refactor_domain_code_with_parser.md` — cards always in IR; policy is Cos
 - [ ] Export policy + card ingest opts in `lib.rs`
 
 ### Cos server/sdk (separate but required for “feel it”)
 
-- [ ] S0: Implement `SourceDomainAdapter` for code (pattern: mailbox/office adapters in `cognitiveos_v3_sdk`)
-- [ ] S0: Register code adapter with `SourceIngestService` → real persisted ingest via `ingest_*_with_hooks` + V3 Store
-- [ ] S0: Code smoke UI shows file card text in detail panel (not just preview graph)
+- [x] S0: Implement `SourceDomainAdapter` for code (pattern: mailbox/office adapters in `cognitiveos_v3_sdk`)
+- [x] S0: Register code adapter with `SourceIngestService` → real persisted ingest via `ingest_*_with_hooks` + V3 Store
+- [x] S0: Code smoke UI shows file card text in detail panel (not just preview graph)
 - [ ] Rhai template sketch: search code/file|symbol → open path → calls_of
 
 ### Explicitly later
