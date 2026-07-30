@@ -439,10 +439,21 @@ Replicate denylist string list in code-parser (card) and domain_code (call promo
 - [x] S0: Code smoke UI shows file card text in detail panel (not just preview graph)
 - [ ] Rhai template sketch: search code/file|symbol → open path → calls_of
 
+### Shipped (was "Explicitly later")
+
+- [x] **D0: selective ANN embed** — `CodeEmbedPolicy` (default `Selective`) on watcher
+  `CodeFileAdapter`. Tiered per-node decision: file card always; symbols by kind +
+  docstring/token threshold; skips Constants/Variables/trivial getters. Cuts ~40-60%
+  of embed calls while keeping semantic coverage. Env flags: `V3_CODE_EMBED_MODE`
+  (`off|lexonly|selective|all`), `V3_CODE_EMBED_MIN_TOKENS`,
+  `V3_CODE_EMBED_REQUIRE_DOCSTRING`, `V3_CODE_EMBED_FILE_CARD`.
+
 ### Explicitly later
 
-- [ ] D0: `CodeEmbedHook` on `ProductionHooks` — optional ANN embed of file cards via Cos text embedder
-- [ ] Symbol ANN (only if post-lex conceptual misses on symbol pin)
+- [ ] `CodeEmbedHook` on `ProductionHooks` (for the HTTP persist path — currently
+  embed is watcher-only via `CodeFileAdapter`; the `/api/code/ingest-persist` path is
+  lex-only until this hook lands)
+- [ ] Symbol ANN quality measurement (post-lex conceptual-miss audit)
 - [ ] code-parser-v2.md §8 resolve quality
 - [ ] Shared crate for denylist (only if duplication hurts)
 
