@@ -11,6 +11,7 @@ use code_parser_ir::FileParseIR;
 /// - `content_hash` — changes with any byte edit (hash asserted separately)
 /// - `start_byte` / `end_byte` — tree-sitter byte offsets, unstable across grammar versions
 /// - `column` — unstable across grammar versions
+/// - `retrieval_card.text`, `symbol_cards[*].text` — built in `parse_file_bytes`, not by extractors
 ///
 /// Fields asserted exactly:
 /// - `byte_len`, `line_count` — structural, must match golden
@@ -19,6 +20,9 @@ use code_parser_ir::FileParseIR;
 /// - All import names, modules, kinds, lines
 pub fn normalize_for_compare(ir: &mut FileParseIR) {
     ir.content_hash = String::new();
+    ir.retrieval_card.text = String::new();
+    ir.retrieval_card.est_tokens = 0;
+    ir.symbol_cards.clear();
     for sym in &mut ir.symbols {
         sym.start_byte = None;
         sym.end_byte = None;
@@ -41,8 +45,8 @@ pub fn normalize_for_compare(ir: &mut FileParseIR) {
 /// - `start_line <= end_line` for every symbol
 /// - `caller_local_key` of every call references a known symbol `local_key`
 pub fn validate_schema(ir: &FileParseIR) -> Result<(), String> {
-    if ir.ir_version != 1 {
-        return Err(format!("ir_version must be 1, got {}", ir.ir_version));
+    if ir.ir_version != 1 && ir.ir_version != 2 {
+        return Err(format!("ir_version must be 1 or 2, got {}", ir.ir_version));
     }
     if ir.path.is_empty() {
         return Err("path is empty".into());

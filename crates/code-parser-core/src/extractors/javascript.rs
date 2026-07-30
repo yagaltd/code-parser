@@ -29,7 +29,7 @@ impl LanguageExtractor for JavaScriptExtractor {
         resolve_in_file(&mut ctx);
 
         FileParseIR {
-            ir_version: 1,
+            ir_version: 2,
             path: file_path.to_string(),
             language: Language::JavaScript.as_str().to_string(),
             content_hash,
@@ -38,6 +38,8 @@ impl LanguageExtractor for JavaScriptExtractor {
             symbols: ctx.symbols,
             calls: ctx.calls,
             imports: ctx.imports,
+            retrieval_card: Default::default(),
+            symbol_cards: Vec::new(),
             diagnostics: ctx.diagnostics,
         }
     }
