@@ -1,93 +1,115 @@
 {
-    "ir_version": 1,
-    "path": "fixtures/python/simple.py",
-    "language": "Python",
-    "content_hash": "1a16f45ae68aa79d632bcd983402b4a96861dd25fbeec5d01a97ba59c4eaa669",
-    "byte_len": 177,
-    "line_count": 11,
-    "symbols": [
+  "ir_version": 2,
+  "path": "fixtures/python/simple.py",
+  "language": "Python",
+  "content_hash": "1a16f45ae68aa79d632bcd983402b4a96861dd25fbeec5d01a97ba59c4eaa669",
+  "byte_len": 177,
+  "line_count": 11,
+  "symbols": [
+    {
+      "local_key": "Greeter",
+      "name": "Greeter",
+      "qualified_name": "Greeter",
+      "kind": "Class",
+      "start_line": 3,
+      "end_line": 6,
+      "start_byte": 11,
+      "end_byte": 124,
+      "signature": null,
+      "parameters": [],
+      "return_type": null,
+      "docstring": "A friendly class."
+    },
+    {
+      "local_key": "Greeter.greet",
+      "name": "greet",
+      "qualified_name": "Greeter.greet",
+      "kind": "Method",
+      "start_line": 5,
+      "end_line": 6,
+      "start_byte": 58,
+      "end_byte": 124,
+      "signature": "def greet(self, name: str)",
+      "parameters": [
         {
-            "local_key": "Greeter",
-            "name": "Greeter",
-            "qualified_name": "Greeter",
-            "kind": "Class",
-            "start_line": 3,
-            "end_line": 6,
-            "start_byte": 11,
-            "end_byte": 124,
-            "signature": null,
-            "parameters": [],
-            "return_type": null,
-            "docstring": "A friendly class."
+          "name": "self",
+          "type_annotation": null,
+          "default_value": null
         },
         {
-            "local_key": "Greeter.greet",
-            "name": "greet",
-            "qualified_name": "Greeter.greet",
-            "kind": "Method",
-            "start_line": 5,
-            "end_line": 6,
-            "start_byte": 58,
-            "end_byte": 124,
-            "signature": "def greet(self, name: str)",
-            "parameters": [
-                {
-                    "name": "self",
-                    "type_annotation": null,
-                    "default_value": null
-                },
-                {
-                    "name": "name",
-                    "type_annotation": "str",
-                    "default_value": null
-                }
-            ],
-            "return_type": "str",
-            "docstring": null
-        },
-        {
-            "local_key": "main",
-            "name": "main",
-            "qualified_name": "main",
-            "kind": "Function",
-            "start_line": 8,
-            "end_line": 10,
-            "start_byte": 126,
-            "end_byte": 176,
-            "signature": "def main()",
-            "parameters": [],
-            "return_type": null,
-            "docstring": null
+          "name": "name",
+          "type_annotation": "str",
+          "default_value": null
         }
-    ],
-    "calls": [
-        {
-            "caller_local_key": "main",
-            "callee_name": "Greeter",
-            "callee_local_key": "Greeter",
-            "callee_file": null,
-            "callee_external": false,
-            "line": 9,
-            "column": 8
-        },
-        {
-            "caller_local_key": "main",
-            "callee_name": "g.greet",
-            "callee_local_key": null,
-            "callee_file": null,
-            "callee_external": false,
-            "line": 10,
-            "column": 4
-        }
-    ],
-    "imports": [
-        {
-            "import_name": "os",
-            "target_module": "",
-            "kind": "Named",
-            "line": 1,
-            "column": 0
-        }
-    ],
-    "diagnostics": []
+      ],
+      "return_type": "str",
+      "docstring": null
+    },
+    {
+      "local_key": "main",
+      "name": "main",
+      "qualified_name": "main",
+      "kind": "Function",
+      "start_line": 8,
+      "end_line": 10,
+      "start_byte": 126,
+      "end_byte": 176,
+      "signature": "def main()",
+      "parameters": [],
+      "return_type": null,
+      "docstring": null
+    }
+  ],
+  "calls": [
+    {
+      "caller_local_key": "main",
+      "callee_name": "Greeter",
+      "callee_local_key": "Greeter",
+      "callee_file": null,
+      "callee_external": false,
+      "line": 9,
+      "column": 8
+    },
+    {
+      "caller_local_key": "main",
+      "callee_name": "g.greet",
+      "callee_local_key": null,
+      "callee_file": null,
+      "callee_external": false,
+      "line": 10,
+      "column": 4
+    }
+  ],
+  "imports": [
+    {
+      "import_name": "os",
+      "target_module": "",
+      "kind": "Named",
+      "line": 1,
+      "column": 0
+    }
+  ],
+  "diagnostics": [],
+  "retrieval_card": {
+    "card_version": 1,
+    "est_tokens": 62,
+    "text": "FILE path=fixtures/python/simple.py lang=Python lines=11 hash=1a16f45a\nIMPORTS \nSYMBOLS\n  Function main L8-10 sig=def main()\n  Method Greeter.greet L5-6 sig=def greet(self, name: str)\n  Class Greeter L3-6\nCALLS_OUT Greeter×1 g.greet×1\nPUB Greeter"
+  },
+  "symbol_cards": [
+    {
+      "card_version": 1,
+      "est_tokens": 22,
+      "text": "SYM path=fixtures/python/simple.py qname=Greeter kind=Class L3-6\nDOC A friendly class."
+    },
+    {
+      "card_version": 1,
+      "est_tokens": 26,
+      "text": "SYM path=fixtures/python/simple.py qname=Greeter.greet kind=Method L5-6\nSIG def greet(self, name: str)"
+    },
+    {
+      "card_version": 1,
+      "est_tokens": 26,
+      "text": "SYM path=fixtures/python/simple.py qname=main kind=Function L8-10\nSIG def main()\nCALLS Greeter, g.greet"
+    }
+  ]
 }

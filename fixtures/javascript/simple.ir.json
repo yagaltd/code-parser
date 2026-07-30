@@ -1,139 +1,171 @@
 {
-    "ir_version": 1,
-    "path": "fixtures/javascript/simple.js",
-    "language": "JavaScript",
-    "content_hash": "6d7925389bd6ba12831b38e2f0fcc4ff478047c970933faf0a8bbc02f9914ff5",
-    "byte_len": 412,
-    "line_count": 28,
-    "symbols": [
+  "ir_version": 2,
+  "path": "fixtures/javascript/simple.js",
+  "language": "JavaScript",
+  "content_hash": "6d7925389bd6ba12831b38e2f0fcc4ff478047c970933faf0a8bbc02f9914ff5",
+  "byte_len": 412,
+  "line_count": 28,
+  "symbols": [
+    {
+      "local_key": "Calculator",
+      "name": "Calculator",
+      "qualified_name": "Calculator",
+      "kind": "Class",
+      "start_line": 7,
+      "end_line": 15,
+      "start_byte": 104,
+      "end_byte": 232,
+      "signature": null,
+      "parameters": [],
+      "return_type": null,
+      "docstring": "\nA simple calculator class.\n"
+    },
+    {
+      "local_key": "Calculator::constructor",
+      "name": "constructor",
+      "qualified_name": "Calculator::constructor",
+      "kind": "Method",
+      "start_line": 8,
+      "end_line": 10,
+      "start_byte": 127,
+      "end_byte": 185,
+      "signature": "function constructor(initial)",
+      "parameters": [
         {
-            "local_key": "Calculator",
-            "name": "Calculator",
-            "qualified_name": "Calculator",
-            "kind": "Class",
-            "start_line": 7,
-            "end_line": 15,
-            "start_byte": 104,
-            "end_byte": 232,
-            "signature": null,
-            "parameters": [],
-            "return_type": null,
-            "docstring": "\nA simple calculator class.\n"
-        },
-        {
-            "local_key": "Calculator::constructor",
-            "name": "constructor",
-            "qualified_name": "Calculator::constructor",
-            "kind": "Method",
-            "start_line": 8,
-            "end_line": 10,
-            "start_byte": 127,
-            "end_byte": 185,
-            "signature": "function constructor(initial)",
-            "parameters": [
-                {
-                    "name": "initial",
-                    "type_annotation": null,
-                    "default_value": null
-                }
-            ],
-            "return_type": null,
-            "docstring": null
-        },
-        {
-            "local_key": "Calculator::add",
-            "name": "add",
-            "qualified_name": "Calculator::add",
-            "kind": "Method",
-            "start_line": 12,
-            "end_line": 14,
-            "start_byte": 191,
-            "end_byte": 230,
-            "signature": "function add(n)",
-            "parameters": [
-                {
-                    "name": "n",
-                    "type_annotation": null,
-                    "default_value": null
-                }
-            ],
-            "return_type": null,
-            "docstring": null
-        },
-        {
-            "local_key": "multiply",
-            "name": "multiply",
-            "qualified_name": "multiply",
-            "kind": "Function",
-            "start_line": 17,
-            "end_line": 19,
-            "start_byte": 234,
-            "end_byte": 279,
-            "signature": "function multiply(a, b)",
-            "parameters": [
-                {
-                    "name": "a",
-                    "type_annotation": null,
-                    "default_value": null
-                },
-                {
-                    "name": "b",
-                    "type_annotation": null,
-                    "default_value": null
-                }
-            ],
-            "return_type": null,
-            "docstring": null
-        },
-        {
-            "local_key": "divide",
-            "name": "divide",
-            "qualified_name": "divide",
-            "kind": "Function",
-            "start_line": 21,
-            "end_line": 21,
-            "start_byte": 287,
-            "end_byte": 311,
-            "signature": "const divide(...)",
-            "parameters": [
-                {
-                    "name": "a",
-                    "type_annotation": null,
-                    "default_value": null
-                },
-                {
-                    "name": "b",
-                    "type_annotation": null,
-                    "default_value": null
-                }
-            ],
-            "return_type": null,
-            "docstring": null
+          "name": "initial",
+          "type_annotation": null,
+          "default_value": null
         }
-    ],
-    "calls": [],
-    "imports": [
+      ],
+      "return_type": null,
+      "docstring": null
+    },
+    {
+      "local_key": "Calculator::add",
+      "name": "add",
+      "qualified_name": "Calculator::add",
+      "kind": "Method",
+      "start_line": 12,
+      "end_line": 14,
+      "start_byte": 191,
+      "end_byte": 230,
+      "signature": "function add(n)",
+      "parameters": [
         {
-            "import_name": "add",
-            "target_module": "./math.js",
-            "kind": "Named",
-            "line": 1,
-            "column": 0
-        },
-        {
-            "import_name": "{ add }",
-            "target_module": "./math.js",
-            "kind": "Default",
-            "line": 1,
-            "column": 0
-        },
-        {
-            "import_name": "greet",
-            "target_module": "./hello.js",
-            "kind": "Default",
-            "line": 2,
-            "column": 0
+          "name": "n",
+          "type_annotation": null,
+          "default_value": null
         }
-    ],
-    "diagnostics": []
+      ],
+      "return_type": null,
+      "docstring": null
+    },
+    {
+      "local_key": "multiply",
+      "name": "multiply",
+      "qualified_name": "multiply",
+      "kind": "Function",
+      "start_line": 17,
+      "end_line": 19,
+      "start_byte": 234,
+      "end_byte": 279,
+      "signature": "function multiply(a, b)",
+      "parameters": [
+        {
+          "name": "a",
+          "type_annotation": null,
+          "default_value": null
+        },
+        {
+          "name": "b",
+          "type_annotation": null,
+          "default_value": null
+        }
+      ],
+      "return_type": null,
+      "docstring": null
+    },
+    {
+      "local_key": "divide",
+      "name": "divide",
+      "qualified_name": "divide",
+      "kind": "Function",
+      "start_line": 21,
+      "end_line": 21,
+      "start_byte": 287,
+      "end_byte": 311,
+      "signature": "const divide(...)",
+      "parameters": [
+        {
+          "name": "a",
+          "type_annotation": null,
+          "default_value": null
+        },
+        {
+          "name": "b",
+          "type_annotation": null,
+          "default_value": null
+        }
+      ],
+      "return_type": null,
+      "docstring": null
+    }
+  ],
+  "calls": [],
+  "imports": [
+    {
+      "import_name": "add",
+      "target_module": "./math.js",
+      "kind": "Named",
+      "line": 1,
+      "column": 0
+    },
+    {
+      "import_name": "{ add }",
+      "target_module": "./math.js",
+      "kind": "Default",
+      "line": 1,
+      "column": 0
+    },
+    {
+      "import_name": "greet",
+      "target_module": "./hello.js",
+      "kind": "Default",
+      "line": 2,
+      "column": 0
+    }
+  ],
+  "diagnostics": [],
+  "retrieval_card": {
+    "card_version": 1,
+    "est_tokens": 96,
+    "text": "FILE path=fixtures/javascript/simple.js lang=JavaScript lines=28 hash=6d792538\nIMPORTS ./hello.js, ./math.js\nSYMBOLS\n  Function divide L21-21 sig=const divide(...)\n  Function multiply L17-19 sig=function multiply(a, b)\n  Method Calculator::add L12-14 sig=function add(n)\n  Method Calculator::constructor L8-10 sig=function constructor(initial)\n  Class Calculator L7-15\nPUB Calculator"
+  },
+  "symbol_cards": [
+    {
+      "card_version": 1,
+      "est_tokens": 27,
+      "text": "SYM path=fixtures/javascript/simple.js qname=Calculator kind=Class L7-15\nDOC \nA simple calculator class.\n"
+    },
+    {
+      "card_version": 1,
+      "est_tokens": 30,
+      "text": "SYM path=fixtures/javascript/simple.js qname=Calculator::constructor kind=Method L8-10\nSIG function constructor(initial)"
+    },
+    {
+      "card_version": 1,
+      "est_tokens": 25,
+      "text": "SYM path=fixtures/javascript/simple.js qname=Calculator::add kind=Method L12-14\nSIG function add(n)"
+    },
+    {
+      "card_version": 1,
+      "est_tokens": 26,
+      "text": "SYM path=fixtures/javascript/simple.js qname=multiply kind=Function L17-19\nSIG function multiply(a, b)"
+    },
+    {
+      "card_version": 1,
+      "est_tokens": 24,
+      "text": "SYM path=fixtures/javascript/simple.js qname=divide kind=Function L21-21\nSIG const divide(...)"
+    }
+  ]
 }
