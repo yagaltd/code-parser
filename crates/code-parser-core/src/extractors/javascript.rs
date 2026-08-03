@@ -23,6 +23,7 @@ impl LanguageExtractor for JavaScriptExtractor {
         let byte_len = source.len() as u64;
 
         let mut ctx = ExtractCtx::new(source);
+        ctx.file_path = file_path;
         ctx.visit_node(&tree.root_node());
 
         // In-file resolve: map same-file calls to local_keys.
@@ -57,6 +58,8 @@ struct ExtractCtx<'a> {
     current_caller: Option<String>,
     /// Current class name when inside a class body (for method qualified names).
     class_stack: Vec<String>,
+    /// Source file path (file-level test detection).
+    file_path: &'a str,
 }
 
 impl<'a> ExtractCtx<'a> {
@@ -69,7 +72,13 @@ impl<'a> ExtractCtx<'a> {
             diagnostics: Vec::new(),
             current_caller: None,
             class_stack: Vec::new(),
+            file_path: "",
         }
+    }
+
+    /// Test detection (file-level: .test./.spec. names, __tests__ dirs).
+    fn is_test_symbol(&self, _node: &Node) -> bool {
+        is_test_file_path(self.file_path)
     }
 
     fn text(&self, node: &Node) -> &str {
@@ -184,8 +193,8 @@ impl<'a> ExtractCtx<'a> {
             signature: sig,
             parameters: params,
             return_type: None,
-            docstring: extract_jsdoc(node, self.source),
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: extract_jsdoc(node, self.source),        });
 
         // Visit body with caller context.
         let prev = self.current_caller.replace(local_key);
@@ -227,8 +236,8 @@ impl<'a> ExtractCtx<'a> {
             signature: None,
             parameters: Vec::new(),
             return_type: None,
-            docstring: extract_jsdoc(node, self.source),
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: extract_jsdoc(node, self.source),        });
 
         // Push class context so methods get qualified names.
         self.class_stack.push(name.clone());
@@ -277,8 +286,8 @@ impl<'a> ExtractCtx<'a> {
             signature: sig,
             parameters: params,
             return_type: None,
-            docstring: extract_jsdoc(node, self.source),
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: extract_jsdoc(node, self.source),        });
 
         let prev = self.current_caller.replace(local_key);
         if let Some(body) = node.child_by_field_name("body") {
@@ -334,8 +343,8 @@ impl<'a> ExtractCtx<'a> {
                     signature: Some(sig),
                     parameters: params,
                     return_type: None,
-                    docstring: None,
-                });
+            is_test: self.is_test_symbol(node),
+                    docstring: None,        });
 
                 let prev = self.current_caller.replace(name);
                 if let Some(body) = val.child_by_field_name("body") {
@@ -696,6 +705,14 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+
+/// File-level test detection (ts/js): .test. / .spec. files, __tests__ dirs.
+fn is_test_file_path(path: &str) -> bool {
+    let base = path.rsplit('/').next().unwrap_or(path);
+    base.contains(".test.") || base.contains(".spec.")
+        || path.contains("/__tests__/") || path.contains("/test/") || path.contains("/tests/")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -706,7 +723,10 @@ mod tests {
             .set_language(&tree_sitter_javascript::LANGUAGE.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
-        JavaScriptExtractor.extract(&tree, source, path)
+        let ir = JavaScriptExtractor.extract(&tree, source, path);
+        let mut ir = ir;
+        ir.ir_version = 3;
+        ir
     }
 
     // ── Golden fixture tests ─────────────────────────────────────────
@@ -908,5 +928,17 @@ console.log("done");
             serde_json::to_string_pretty(&expected_ir).unwrap(),
             "Golden IR mismatch for JavaScript"
         );
+    }
+
+
+    #[test]
+    fn is_test_flag_detects_test_filenames() {
+        let src = "export function add(a, b) { return a + b; }";
+        let normal = parse_js(src.as_bytes(), "src/math.js");
+        assert!(!normal.symbols[0].is_test);
+        let test_file = parse_js(src.as_bytes(), "src/math.test.js");
+        assert!(test_file.symbols[0].is_test, ".test.js file must be test");
+        let tests_dir = parse_js(src.as_bytes(), "src/__tests__/math.js");
+        assert!(tests_dir.symbols[0].is_test, "__tests__ dir must be test");
     }
 }

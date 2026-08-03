@@ -130,6 +130,11 @@ pub struct SymbolIR {
     pub return_type: Option<String>,
     /// Doc comment text (leading `///` or `/** */` stripped).
     pub docstring: Option<String>,
+    /// True when the symbol is test code: `#[test]`/`#[cfg(test)]` in Rust,
+    /// `test_*` names / test files in Python, `.test.`/`.spec.` files in
+    /// TS/JS. Emitted by the extractors (code-v3-improv idea 2).
+    #[serde(default)]
+    pub is_test: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -248,7 +253,7 @@ impl FileParseIR {
     /// Create a minimal IR for a file that failed to parse (diagnostics only).
     pub fn empty(path: impl Into<String>, language: impl Into<String>) -> Self {
         Self {
-            ir_version: 2,
+            ir_version: 3,
             path: path.into(),
             language: language.into(),
             content_hash: String::new(),
@@ -502,7 +507,7 @@ mod tests {
 
     fn make_test_ir() -> FileParseIR {
         FileParseIR {
-            ir_version: 2,
+            ir_version: 3,
             path: "src/main.rs".into(),
             language: "Rust".into(),
             content_hash: "abc123def4567890".into(),

@@ -21,8 +21,6 @@ pub mod python;
 #[cfg(feature = "javascript")]
 pub mod javascript;
 
-#[cfg(test)]
-#[allow(dead_code)]
 pub mod golden;
 
 pub mod utils;

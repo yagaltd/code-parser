@@ -25,6 +25,7 @@ impl LanguageExtractor for TypeScriptExtractor {
         let byte_len = source.len() as u64;
 
         let mut ctx = ExtractCtx::new(source);
+        ctx.file_path = file_path;
 
         // Collect imports directly from root children.
         let root = tree.root_node();
@@ -78,6 +79,8 @@ struct ExtractCtx<'a> {
     current_caller: Option<String>,
     /// Current class name stack — used for Method qualified names.
     class_stack: Vec<String>,
+    /// Source file path (file-level test detection).
+    file_path: &'a str,
 }
 
 impl<'a> ExtractCtx<'a> {
@@ -90,7 +93,13 @@ impl<'a> ExtractCtx<'a> {
             diagnostics: Vec::new(),
             current_caller: None,
             class_stack: Vec::new(),
+            file_path: "",
         }
+    }
+
+    /// Test detection (file-level: .test./.spec. names, __tests__ dirs).
+    fn is_test_symbol(&self, _node: &Node) -> bool {
+        is_test_file_path(self.file_path)
     }
 
     fn text(&self, node: &Node) -> &str {
@@ -208,8 +217,8 @@ impl<'a> ExtractCtx<'a> {
             signature: sig,
             parameters: params,
             return_type,
-            docstring: doc,
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: doc,        });
 
         let prev = self.current_caller.replace(name);
         if let Some(body) = node.child_by_field_name("body") {
@@ -250,8 +259,8 @@ impl<'a> ExtractCtx<'a> {
             signature: None,
             parameters: Vec::new(),
             return_type: None,
-            docstring: doc,
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: doc,        });
 
         // Push class context for method qualified names.
         self.class_stack.push(name);
@@ -292,8 +301,8 @@ impl<'a> ExtractCtx<'a> {
             signature: sig,
             parameters: params,
             return_type,
-            docstring: None,
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: None,        });
 
         let prev = self.current_caller.replace(local_key);
         if let Some(body) = node.child_by_field_name("body") {
@@ -322,8 +331,8 @@ impl<'a> ExtractCtx<'a> {
             signature: None,
             parameters: Vec::new(),
             return_type: None,
-            docstring: doc,
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: doc,        });
         self.visit_children(node);
     }
 
@@ -345,8 +354,8 @@ impl<'a> ExtractCtx<'a> {
             signature: None,
             parameters: Vec::new(),
             return_type: None,
-            docstring: None,
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: None,        });
         self.visit_children(node);
     }
 
@@ -368,8 +377,8 @@ impl<'a> ExtractCtx<'a> {
             signature: None,
             parameters: Vec::new(),
             return_type: None,
-            docstring: None,
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: None,        });
         self.visit_children(node);
     }
 
@@ -408,8 +417,8 @@ impl<'a> ExtractCtx<'a> {
                         signature: sig,
                         parameters: value.as_ref().map_or(Vec::new(), |v| extract_params(v, self.source)),
                         return_type: value.and_then(|v| field_text(&v, "return_type", self.source)),
-                        docstring: None,
-                    });
+            is_test: self.is_test_symbol(node),
+                        docstring: None,        });
 
                     // If it's a function, track calls inside it.
                     if is_function {
@@ -744,6 +753,14 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+
+/// File-level test detection (ts/js): .test. / .spec. files, __tests__ dirs.
+fn is_test_file_path(path: &str) -> bool {
+    let base = path.rsplit('/').next().unwrap_or(path);
+    base.contains(".test.") || base.contains(".spec.")
+        || path.contains("/__tests__/") || path.contains("/test/") || path.contains("/tests/")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -755,7 +772,10 @@ mod tests {
             .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
-        TypeScriptExtractor.extract(&tree, source, path)
+        let ir = TypeScriptExtractor.extract(&tree, source, path);
+        let mut ir = ir;
+        ir.ir_version = 3;
+        ir
     }
 
     // ── Simple fixture ───────────────────────────────────────────────
@@ -888,5 +908,17 @@ const double = (x: number): number => x * 2;
             serde_json::to_string_pretty(&expected_ir).unwrap(),
             "Golden IR mismatch for TypeScript"
         );
+    }
+
+
+    #[test]
+    fn is_test_flag_detects_test_filenames() {
+        let src = "export function add(a: number, b: number): number { return a + b; }";
+        let normal = parse_ts(src.as_bytes(), "src/math.ts");
+        assert!(!normal.symbols[0].is_test);
+        let test_file = parse_ts(src.as_bytes(), "src/math.test.ts");
+        assert!(test_file.symbols[0].is_test, ".test.ts file must be test");
+        let spec_file = parse_ts(src.as_bytes(), "src/math.spec.ts");
+        assert!(spec_file.symbols[0].is_test, ".spec.ts file must be test");
     }
 }

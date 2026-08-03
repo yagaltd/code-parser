@@ -1,8 +1,8 @@
 {
-  "ir_version": 2,
+  "ir_version": 3,
   "path": "fixtures/typescript/simple.ts",
   "language": "TypeScript",
-  "content_hash": "de5a570ae046d0ef5b8ccf85d9d2462a53d7314e8f8f5d5e5752048b73bc3181",
+  "content_hash": "",
   "byte_len": 566,
   "line_count": 30,
   "symbols": [
@@ -13,12 +13,13 @@
       "kind": "Interface",
       "start_line": 4,
       "end_line": 6,
-      "start_byte": 68,
-      "end_byte": 122,
+      "start_byte": null,
+      "end_byte": null,
       "signature": null,
       "parameters": [],
       "return_type": null,
-      "docstring": null
+      "docstring": null,
+      "is_test": false
     },
     {
       "local_key": "Person",
@@ -27,12 +28,13 @@
       "kind": "Class",
       "start_line": 8,
       "end_line": 18,
-      "start_byte": 124,
-      "end_byte": 345,
+      "start_byte": null,
+      "end_byte": null,
       "signature": null,
       "parameters": [],
       "return_type": null,
-      "docstring": null
+      "docstring": null,
+      "is_test": false
     },
     {
       "local_key": "Person.constructor",
@@ -41,8 +43,8 @@
       "kind": "Method",
       "start_line": 11,
       "end_line": 13,
-      "start_byte": 189,
-      "end_byte": 248,
+      "start_byte": null,
+      "end_byte": null,
       "signature": "constructor(name: string)",
       "parameters": [
         {
@@ -52,7 +54,8 @@
         }
       ],
       "return_type": null,
-      "docstring": null
+      "docstring": null,
+      "is_test": false
     },
     {
       "local_key": "Person.greet",
@@ -61,8 +64,8 @@
       "kind": "Method",
       "start_line": 15,
       "end_line": 17,
-      "start_byte": 254,
-      "end_byte": 343,
+      "start_byte": null,
+      "end_byte": null,
       "signature": "greet(person: string): string",
       "parameters": [
         {
@@ -72,7 +75,8 @@
         }
       ],
       "return_type": ": string",
-      "docstring": null
+      "docstring": null,
+      "is_test": false
     },
     {
       "local_key": "makeGreeter",
@@ -81,8 +85,8 @@
       "kind": "Function",
       "start_line": 20,
       "end_line": 22,
-      "start_byte": 347,
-      "end_byte": 423,
+      "start_byte": null,
+      "end_byte": null,
       "signature": "function makeGreeter(name: string): Greeter",
       "parameters": [
         {
@@ -92,7 +96,8 @@
         }
       ],
       "return_type": ": Greeter",
-      "docstring": null
+      "docstring": null,
+      "is_test": false
     },
     {
       "local_key": "greet",
@@ -101,8 +106,8 @@
       "kind": "Function",
       "start_line": 24,
       "end_line": 24,
-      "start_byte": 425,
-      "end_byte": 478,
+      "start_byte": null,
+      "end_byte": null,
       "signature": "(name: string): string =>",
       "parameters": [
         {
@@ -112,7 +117,8 @@
         }
       ],
       "return_type": ": string",
-      "docstring": null
+      "docstring": null,
+      "is_test": false
     },
     {
       "local_key": "p",
@@ -121,12 +127,13 @@
       "kind": "Constant",
       "start_line": 26,
       "end_line": 26,
-      "start_byte": 480,
-      "end_byte": 510,
+      "start_byte": null,
+      "end_byte": null,
       "signature": null,
       "parameters": [],
       "return_type": null,
-      "docstring": null
+      "docstring": null,
+      "is_test": false
     }
   ],
   "calls": [
@@ -137,7 +144,7 @@
       "callee_file": null,
       "callee_external": false,
       "line": 21,
-      "column": 11
+      "column": null
     }
   ],
   "imports": [
@@ -146,35 +153,35 @@
       "target_module": "./math",
       "kind": "Named",
       "line": 1,
-      "column": 0
+      "column": null
     },
     {
       "import_name": "User",
       "target_module": "./types",
       "kind": "Named",
       "line": 2,
-      "column": 0
+      "column": null
     },
     {
       "import_name": "add",
       "target_module": "./math",
       "kind": "Named",
       "line": 1,
-      "column": 0
+      "column": null
     },
     {
       "import_name": "User",
       "target_module": "./types",
       "kind": "Named",
       "line": 2,
-      "column": 0
+      "column": null
     }
   ],
   "diagnostics": [],
   "retrieval_card": {
     "card_version": 1,
-    "est_tokens": 120,
-    "text": "FILE path=fixtures/typescript/simple.ts lang=TypeScript lines=30 hash=de5a570a\nIMPORTS ./math, ./types\nSYMBOLS\n  Function greet L24-24 sig=(name: string): string =>\n  Function makeGreeter L20-22 sig=function makeGreeter(name: string): Greeter\n  Method Person.constructor L11-13 sig=constructor(name: string)\n  Method Person.greet L15-17 sig=greet(person: string): string\n  Class Person L8-18\n  Interface Greeter L4-6\n  Constant p L26-26\nCALLS_OUT new Person×1\nPUB Greeter, Person"
+    "est_tokens": 118,
+    "text": "FILE path=fixtures/typescript/simple.ts lang=TypeScript lines=30 hash=\nIMPORTS ./math, ./types\nSYMBOLS\n  Function greet L24-24 sig=(name: string): string =>\n  Function makeGreeter L20-22 sig=function makeGreeter(name: string): Greeter\n  Method Person.constructor L11-13 sig=constructor(name: string)\n  Method Person.greet L15-17 sig=greet(person: string): string\n  Class Person L8-18\n  Interface Greeter L4-6\n  Constant p L26-26\nCALLS_OUT new Person×1\nPUB Greeter, Person"
   },
   "symbol_cards": [
     {

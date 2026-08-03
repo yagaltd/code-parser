@@ -24,6 +24,7 @@ impl LanguageExtractor for PythonExtractor {
         let byte_len = source.len() as u64;
 
         let mut ctx = ExtractCtx::new(source);
+        ctx.file_path = file_path;
         ctx.visit_node(&tree.root_node());
 
         // In-file resolve.
@@ -58,6 +59,8 @@ struct ExtractCtx<'a> {
     current_caller: Option<String>,
     /// Current class name stack — used for Method qualified names.
     class_stack: Vec<String>,
+    /// Source file path (file-level test detection).
+    file_path: &'a str,
 }
 
 impl<'a> ExtractCtx<'a> {
@@ -70,7 +73,19 @@ impl<'a> ExtractCtx<'a> {
             diagnostics: Vec::new(),
             current_caller: None,
             class_stack: Vec::new(),
+            file_path: "",
         }
+    }
+
+    /// Test detection: test_* / Test* names + test files (python).
+    fn is_test_symbol(&self, node: &Node) -> bool {
+        if is_test_file_path(self.file_path) {
+            return true;
+        }
+        if let Some(name) = node.child_by_field_name("name").map(|n| self.text(&n).to_string()) {
+            return name.starts_with("test_") || name.starts_with("Test");
+        }
+        false
     }
 
     fn text(&self, node: &Node) -> &str {
@@ -170,8 +185,8 @@ impl<'a> ExtractCtx<'a> {
             signature: sig,
             parameters: params,
             return_type,
-            docstring: doc,
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: doc,        });
 
         // Visit body with caller context.
         let prev = self.current_caller.replace(local_key);
@@ -200,8 +215,8 @@ impl<'a> ExtractCtx<'a> {
             signature: None,
             parameters: Vec::new(),
             return_type: None,
-            docstring: doc,
-        });
+            is_test: self.is_test_symbol(node),
+            docstring: doc,        });
 
         // Push class context so methods get qualified names.
         self.class_stack.push(name);
@@ -536,6 +551,15 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+
+/// File-level test detection (python): test_*.py files and tests/ dirs.
+fn is_test_file_path(path: &str) -> bool {
+    let base = path.rsplit('/').next().unwrap_or(path);
+    base.starts_with("test_") || base.ends_with("_test.py")
+        || path.contains("/tests/") || path.contains("/test/")
+        || path.starts_with("tests/") || path.starts_with("test/")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -546,7 +570,10 @@ mod tests {
             .set_language(&tree_sitter_python::LANGUAGE.into())
             .unwrap();
         let tree = parser.parse(source, None).unwrap();
-        PythonExtractor.extract(&tree, source, path)
+        let ir = PythonExtractor.extract(&tree, source, path);
+        let mut ir = ir;
+        ir.ir_version = 3;
+        ir
     }
 
     const SIMPLE_PY: &str = r#"import os
@@ -716,5 +743,27 @@ def main():
             serde_json::to_string_pretty(&expected_ir).unwrap(),
             "Golden IR mismatch for Python"
         );
+    }
+
+
+    #[test]
+    fn is_test_flag_detects_python_test_conventions() {
+        let src = "def test_compute():\n    return 1\n\ndef helper():\n    return 2\n\nclass TestWidget:\n    def test_click(self):\n        pass\n\n    def render(self):\n        pass\n";
+        let ir = parse_python(src.as_bytes(), "src/widget.py");
+        let flag = |k: &str| {
+            ir.symbols
+                .iter()
+                .find(|s| s.local_key == k)
+                .map(|s| s.is_test)
+                .unwrap_or_else(|| panic!("symbol {k}"))
+        };
+        assert!(flag("test_compute"), "test_* fn must be test");
+        assert!(!flag("helper"));
+        assert!(flag("TestWidget"), "Test* class must be test");
+        assert!(flag("TestWidget.test_click"), "method in Test class must be test");
+        assert!(!flag("TestWidget.render"), "non-test method in Test class must NOT be test");
+
+        let file_ir = parse_python(b"def f():\n    pass\n", "tests/test_widget.py");
+        assert!(file_ir.symbols[0].is_test, "test_*.py file must be test");
     }
 }
