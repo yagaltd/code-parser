@@ -63,7 +63,7 @@
       "required": [
         "local_key", "name", "qualified_name", "kind",
         "start_line", "end_line", "start_byte", "end_byte",
-        "signature", "parameters", "return_type", "docstring"
+        "signature", "parameters", "return_type", "docstring", "is_test"
       ],
       "properties": {
         "local_key": { "type": "string" },
@@ -87,7 +87,8 @@
           "items": { "$ref": "#/$defs/ParameterIR" }
         },
         "return_type": { "type": ["string", "null"] },
-        "docstring": { "type": ["string", "null"] }
+        "docstring": { "type": ["string", "null"] },
+        "is_test": { "type": "boolean", "default": false, "description": "Symbol is test code (parser-emitted; v3)" }
       }
     },
     "ParameterIR": {

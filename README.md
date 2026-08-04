@@ -43,19 +43,19 @@ cargo run --features watcher -- watch . --emit jsonl
 cargo run -- check src/main.rs
 ```
 
-## IR shape (`ir_version`: 2)
+## IR shape (`ir_version`: 3)
 
 One JSON object per file. Cards are required fields built after extract+resolve:
 
 ```json
 {
-  "ir_version": 2,
+  "ir_version": 3,
   "path": "src/main.rs",
   "language": "Rust",
   "content_hash": "<blake3>",
   "byte_len": 128,
   "line_count": 10,
-  "symbols": [{ "local_key": "main", "name": "main", "kind": "Function", "start_line": 1 }],
+  "symbols": [{ "local_key": "main", "name": "main", "kind": "Function", "start_line": 1, "is_test": false }],
   "calls":    [{ "caller_local_key": "main", "callee_name": "println", "line": 2 }],
   "imports":  [{ "import_name": "HashMap", "target_module": "std::collections", "kind": "Named" }],
   "diagnostics": [],
@@ -71,6 +71,20 @@ One JSON object per file. Cards are required fields built after extract+resolve:
 ```
 
 Invariant: `symbol_cards.len() == symbols.len()`.
+
+`SymbolIR.is_test` (v3, serde-default false) marks test code so consumers can
+answer "which tests cover this symbol" (TESTED_BY mirrors, CognitiveOS
+`domain_code` idea 2). Detection per language:
+
+- **Rust** — `#[test]` / `#[cfg(test)]` attributes, symbols inside `mod tests`,
+  files under a `tests/` dir or named `tests.rs`
+- **Python** — `test_*` / `Test*` names (methods inherit from their `Test*`
+  class), `test_*.py` files, `tests/`/`test/` dirs
+- **TS/JS** — `.test.` / `.spec.` filenames, `__tests__/` / `test/` / `tests/` dirs
+
+The parser is stateless: it never removes or versions anything — `is_test` is
+computed per snapshot; all state (mirrors, sweeps, parity) lives in
+`domain_code` on the store side.
 
 See `fixtures/*/simple.ir.json` and `schema/file_parse_ir.v2.json`. Legacy `schema/file_parse_ir.v1.json` remains for old dumps only.
 
