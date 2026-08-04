@@ -51,12 +51,13 @@ impl LanguageExtractor for TypeScriptExtractor {
         resolve_in_file(&mut ctx);
 
         FileParseIR {
-            ir_version: 2,
+            ir_version: 3,
             path: file_path.to_string(),
             language: Language::TypeScript.as_str().to_string(),
             content_hash,
             byte_len,
             line_count,
+            metrics: code_parser_ir::FileMetrics::default(),
             symbols: ctx.symbols,
             calls: ctx.calls,
             imports: ctx.imports,
@@ -774,6 +775,7 @@ mod tests {
         let tree = parser.parse(source, None).unwrap();
         let ir = TypeScriptExtractor.extract(&tree, source, path);
         let mut ir = ir;
+        ir.metrics = crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
         ir.ir_version = 3;
         ir
     }

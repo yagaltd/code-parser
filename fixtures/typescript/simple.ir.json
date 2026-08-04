@@ -5,6 +5,11 @@
   "content_hash": "",
   "byte_len": 566,
   "line_count": 30,
+  "metrics": {
+    "code_lines": 22,
+    "comment_lines": 0,
+    "blank_lines": 8
+  },
   "symbols": [
     {
       "local_key": "Greeter",

@@ -5,6 +5,11 @@
   "content_hash": "",
   "byte_len": 240,
   "line_count": 17,
+  "metrics": {
+    "code_lines": 13,
+    "comment_lines": 0,
+    "blank_lines": 4
+  },
   "symbols": [
     {
       "local_key": "Cache",

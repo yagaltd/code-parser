@@ -5,6 +5,11 @@
   "content_hash": "",
   "byte_len": 412,
   "line_count": 28,
+  "metrics": {
+    "code_lines": 19,
+    "comment_lines": 3,
+    "blank_lines": 6
+  },
   "symbols": [
     {
       "local_key": "Calculator",

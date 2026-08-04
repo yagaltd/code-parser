@@ -7,6 +7,17 @@
 
 use serde::{Deserialize, Serialize};
 
+// ── File metrics ─────────────────────────────────────────────────────────
+
+/// Per-file line metrics (code/comment/blank) — tokei-style pass, computed
+/// from the tree-sitter tree at parse time.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FileMetrics {
+    pub code_lines: u32,
+    pub comment_lines: u32,
+    pub blank_lines: u32,
+}
+
 // ── Retrieval card ───────────────────────────────────────────────────────
 
 /// Deterministic retrieval projection of a file or symbol.
@@ -94,6 +105,8 @@ pub struct FileParseIR {
     pub byte_len: u64,
     /// Line count (1-indexed).
     pub line_count: u32,
+    /// Per-file line metrics (code/comment/blank) — tokei-style pass.
+    pub metrics: FileMetrics,
     pub symbols: Vec<SymbolIR>,
     pub calls: Vec<CallIR>,
     pub imports: Vec<ImportIR>,
@@ -259,6 +272,7 @@ impl FileParseIR {
             content_hash: String::new(),
             byte_len: 0,
             line_count: 0,
+            metrics: FileMetrics::default(),
             symbols: Vec::new(),
             calls: Vec::new(),
             imports: Vec::new(),

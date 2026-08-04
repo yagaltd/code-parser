@@ -11,6 +11,7 @@ use code_parser_ir::FileParseIR;
 
 pub mod cache;
 pub mod extractors;
+pub mod metrics;
 pub mod file_collect;
 pub mod hash;
 pub mod language;
@@ -155,6 +156,13 @@ pub fn parse_file_bytes(path: &str, source: &[u8]) -> Result<FileParseIR, anyhow
 
         _ => anyhow::bail!("Extractor for {language:?} not yet implemented"),
     };
+
+    // A0: per-file line metrics (code/comment/blank) from the tree.
+    ir.metrics = metrics::compute(
+        &tree,
+        source,
+        metrics::comment_kinds(&ir.language),
+    );
 
     // A1: always build retrieval cards after extract+resolve.
     ir.ir_version = 3;
