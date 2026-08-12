@@ -1,5 +1,4 @@
 /// Gitignore-aware source file collection via the `ignore` crate.
-
 use ignore::WalkBuilder;
 
 use crate::language::Language;

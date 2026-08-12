@@ -32,11 +32,9 @@ mod watcher_impl {
         /// Start watching `root` recursively for file modifications and creations.
         pub fn new(root: &Path) -> Result<Self, anyhow::Error> {
             let (tx, rx) = mpsc::channel();
-            let mut watcher = notify::recommended_watcher(
-                move |res: notify::Result<Event>| {
-                    let _ = tx.send(res);
-                },
-            )?;
+            let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| {
+                let _ = tx.send(res);
+            })?;
             watcher.watch(root, RecursiveMode::Recursive)?;
             Ok(Self {
                 rx,

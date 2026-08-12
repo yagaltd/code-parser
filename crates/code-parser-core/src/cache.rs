@@ -1,7 +1,6 @@
 /// In-memory cache of file path → blake3 hash.
 ///
 /// Used to skip re-parsing when file content hasn't changed.
-
 use std::collections::HashMap;
 
 /// Tracks the last-known blake3 hash for each file path.

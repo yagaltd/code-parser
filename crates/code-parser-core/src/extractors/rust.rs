@@ -2,10 +2,8 @@
 /// symbols, calls, imports, and diagnostics.
 ///
 /// Single-pass recursive walk. Tracks current function context for call attribution.
-
 use code_parser_ir::{
-    CallIR, DiagnosticIR, FileParseIR, ImportIR, ImportKind, ParameterIR,
-    SymbolIR, SymbolKind,
+    CallIR, DiagnosticIR, FileParseIR, ImportIR, ImportKind, ParameterIR, SymbolIR, SymbolKind,
 };
 use tree_sitter::Node;
 
@@ -103,9 +101,18 @@ impl<'a> ExtractCtx<'a> {
     /// Walk a node and its children, dispatching by kind.
     fn visit_node(&mut self, node: &Node<'a>) {
         match node.kind() {
-            "source_file" | "block" | "declaration_list" | "field_declaration_list"
-            | "enum_variant_list" | "use_list" | "scoped_use_list" | "parameters"
-            | "formal_parameters" | "attribute_item" | "inner_attribute_item" | "line_comment"
+            "source_file"
+            | "block"
+            | "declaration_list"
+            | "field_declaration_list"
+            | "enum_variant_list"
+            | "use_list"
+            | "scoped_use_list"
+            | "parameters"
+            | "formal_parameters"
+            | "attribute_item"
+            | "inner_attribute_item"
+            | "line_comment"
             | "block_comment" => {
                 // Container nodes: recurse into children.
                 self.visit_children(node);
@@ -191,7 +198,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: params,
             return_type,
             is_test: self.is_test(node),
-            docstring: doc,        });
+            docstring: doc,
+        });
 
         // Visit body with caller context.
         let prev = self.current_caller.replace(local_key);
@@ -218,7 +226,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: Vec::new(),
             return_type: None,
             is_test: self.is_test(node),
-            docstring: doc,        });
+            docstring: doc,
+        });
 
         // Visit fields (for nested calls, if any).
         self.visit_children(node);
@@ -241,7 +250,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: Vec::new(),
             return_type: None,
             is_test: self.is_test(node),
-            docstring: doc,        });
+            docstring: doc,
+        });
         self.visit_children(node);
     }
 
@@ -262,7 +272,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: Vec::new(),
             return_type: None,
             is_test: self.is_test(node),
-            docstring: doc,        });
+            docstring: doc,
+        });
         self.visit_children(node);
     }
 
@@ -383,12 +394,7 @@ fn build_signature(node: &Node, source: &[u8]) -> Option<String> {
     // Trim trailing whitespace and any trailing '{' that may have been included.
     let sig = sig.trim();
     // Remove trailing newlines / spaces.
-    Some(
-        sig.lines()
-            .map(|l| l.trim())
-            .collect::<Vec<_>>()
-            .join(" "),
-    )
+    Some(sig.lines().map(|l| l.trim()).collect::<Vec<_>>().join(" "))
 }
 
 /// Extract parameters from a function_item.
@@ -641,7 +647,9 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
         std::collections::HashMap::new();
 
     for sym in &ctx.symbols {
-        by_name.entry(sym.name.clone()).or_insert_with(|| sym.local_key.clone());
+        by_name
+            .entry(sym.name.clone())
+            .or_insert_with(|| sym.local_key.clone());
         by_qualified
             .entry(sym.qualified_name.clone())
             .or_insert_with(|| sym.local_key.clone());
@@ -671,7 +679,6 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
-
 
 /// True when the node carries a test-related attribute: `#[test]`,
 /// `#[tokio::test]` (any attribute path ending in `test`), or `#[cfg(test)]`.
@@ -711,7 +718,9 @@ fn has_test_attribute(node: &Node, source: &[u8]) -> bool {
 
 /// File-level test detection: `tests/` directory or `tests.rs` module file.
 fn is_test_file_path(path: &str) -> bool {
-    path.contains("/tests/") || path.starts_with("tests/") || path == "tests.rs"
+    path.contains("/tests/")
+        || path.starts_with("tests/")
+        || path == "tests.rs"
         || path.ends_with("/tests.rs")
 }
 
@@ -728,7 +737,8 @@ mod tests {
         let tree = parser.parse(source, None).unwrap();
         let ir = RustExtractor.extract(&tree, source, path);
         let mut ir = ir;
-        ir.metrics = crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
+        ir.metrics =
+            crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
         ir.ir_version = 3;
         ir
     }
@@ -743,15 +753,25 @@ mod tests {
         assert_eq!(ir.language, "Rust");
 
         let sym_keys: Vec<&str> = ir.symbols.iter().map(|s| s.local_key.as_str()).collect();
-        assert!(sym_keys.contains(&"Cache"), "missing struct Cache: {sym_keys:?}");
-        assert!(sym_keys.contains(&"Cache::get"), "missing method Cache::get");
+        assert!(
+            sym_keys.contains(&"Cache"),
+            "missing struct Cache: {sym_keys:?}"
+        );
+        assert!(
+            sym_keys.contains(&"Cache::get"),
+            "missing method Cache::get"
+        );
         assert!(sym_keys.contains(&"main"), "missing fn main");
 
         let cache = ir.symbols.iter().find(|s| s.local_key == "Cache").unwrap();
         assert_eq!(cache.kind, SK::Struct);
         assert_eq!(cache.start_line, 3);
 
-        let get = ir.symbols.iter().find(|s| s.local_key == "Cache::get").unwrap();
+        let get = ir
+            .symbols
+            .iter()
+            .find(|s| s.local_key == "Cache::get")
+            .unwrap();
         assert_eq!(get.kind, SK::Method);
         assert!(get.signature.as_ref().map_or(false, |s| s.contains("get")));
         assert_eq!(get.parameters.len(), 2);
@@ -768,24 +788,39 @@ mod tests {
         let ir = parse_rust(source.as_bytes(), "fixtures/rust/simple.rs");
 
         let main_calls: Vec<&CallIR> = ir
-            .calls.iter().filter(|c| c.caller_local_key == "main").collect();
+            .calls
+            .iter()
+            .filter(|c| c.caller_local_key == "main")
+            .collect();
         assert!(main_calls.len() >= 2, "expected >=2 calls from main");
 
         // Cache::new → external (has ::, not in-file)
-        let new_call = main_calls.iter().find(|c| c.callee_name == "Cache::new").unwrap();
+        let new_call = main_calls
+            .iter()
+            .find(|c| c.callee_name == "Cache::new")
+            .unwrap();
         assert!(new_call.callee_external, "Cache::new should be external");
         assert_eq!(new_call.line, 14);
 
         // c.get → unresolved, not external (no ::)
-        let cget = main_calls.iter().find(|c| c.callee_name == "c.get").unwrap();
+        let cget = main_calls
+            .iter()
+            .find(|c| c.callee_name == "c.get")
+            .unwrap();
         assert!(!cget.callee_external, "c.get should NOT be external");
         assert!(cget.callee_local_key.is_none());
 
         // self.data.get from Cache::get → unresolved, not external
         let get_calls: Vec<&CallIR> = ir
-            .calls.iter().filter(|c| c.caller_local_key == "Cache::get").collect();
+            .calls
+            .iter()
+            .filter(|c| c.caller_local_key == "Cache::get")
+            .collect();
         assert!(get_calls.len() >= 1, "expected >=1 call from Cache::get");
-        let sdata = get_calls.iter().find(|c| c.callee_name == "self.data.get").unwrap();
+        let sdata = get_calls
+            .iter()
+            .find(|c| c.callee_name == "self.data.get")
+            .unwrap();
         assert!(!sdata.callee_external);
         assert!(sdata.callee_local_key.is_none());
     }
@@ -796,7 +831,8 @@ mod tests {
         let ir = parse_rust(source.as_bytes(), "fixtures/rust/simple.rs");
 
         let hashmap = ir
-            .imports.iter()
+            .imports
+            .iter()
             .find(|i| i.import_name == "HashMap")
             .expect("HashMap import");
         assert_eq!(hashmap.target_module, "std::collections");
@@ -924,7 +960,11 @@ fn foo() -> usize {
             if let Some(eb) = sym.end_byte {
                 assert!(eb <= source_len, "end_byte OOB for {}", sym.local_key);
             }
-            assert!(sym.start_line <= sym.end_line, "inverted span for {}", sym.local_key);
+            assert!(
+                sym.start_line <= sym.end_line,
+                "inverted span for {}",
+                sym.local_key
+            );
         }
     }
 
@@ -1051,7 +1091,11 @@ fn free() {}
 
         // Before cross-file: foo→bar should be in-file resolved.
         {
-            let call = irs[0].calls.iter().find(|c| c.callee_name == "bar").unwrap();
+            let call = irs[0]
+                .calls
+                .iter()
+                .find(|c| c.callee_name == "bar")
+                .unwrap();
             assert_eq!(call.callee_local_key.as_deref(), Some("bar"));
             assert!(call.callee_file.is_none()); // same file, no cross-file needed
         }
@@ -1060,7 +1104,11 @@ fn free() {}
 
         // After: in-file resolved call unchanged.
         {
-            let call = irs[0].calls.iter().find(|c| c.callee_name == "bar").unwrap();
+            let call = irs[0]
+                .calls
+                .iter()
+                .find(|c| c.callee_name == "bar")
+                .unwrap();
             assert_eq!(call.callee_local_key.as_deref(), Some("bar"));
         }
 
@@ -1092,8 +1140,7 @@ fn free() {}
 
         let source = include_str!("../../../../fixtures/rust/simple.rs");
         let actual_ir = parse_rust(source.as_bytes(), "fixtures/rust/simple.rs");
-        let expected_json =
-            include_str!("../../../../fixtures/rust/simple.ir.json");
+        let expected_json = include_str!("../../../../fixtures/rust/simple.ir.json");
         let mut expected_ir: FileParseIR =
             serde_json::from_str(expected_json).expect("valid golden JSON");
 
@@ -1111,7 +1158,6 @@ fn free() {}
             "Golden IR mismatch for Rust"
         );
     }
-
 
     #[test]
     fn is_test_flag_detects_attributes_mods_and_test_dirs() {

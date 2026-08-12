@@ -3,7 +3,6 @@
 /// Each thread gets its own parser instance per language.
 /// Parsers are not `Sync`, so we keep them thread-local.
 /// Each language parser is gated behind its feature flag.
-
 use tree_sitter::Tree;
 
 use crate::language::Language;
@@ -162,7 +161,7 @@ pub fn parse(language: Language, source: &[u8]) -> Result<Tree, anyhow::Error> {
             }
             #[cfg(not(feature = "typescript"))]
             anyhow::bail!("TypeScript parser not enabled. Build with --features typescript")
-        },
+        }
 
         Language::Python => {
             #[cfg(feature = "python")]
@@ -171,7 +170,7 @@ pub fn parse(language: Language, source: &[u8]) -> Result<Tree, anyhow::Error> {
             }
             #[cfg(not(feature = "python"))]
             anyhow::bail!("Python parser not enabled. Build with --features python")
-        },
+        }
         Language::JavaScript => {
             #[cfg(feature = "javascript")]
             {
@@ -179,6 +178,6 @@ pub fn parse(language: Language, source: &[u8]) -> Result<Tree, anyhow::Error> {
             }
             #[cfg(not(feature = "javascript"))]
             anyhow::bail!("JavaScript parser not enabled. Build with --features javascript")
-        },
+        }
     }
 }

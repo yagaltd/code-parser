@@ -2,7 +2,6 @@
 ///
 /// The in-file pass is applied automatically by each extractor.
 /// The cross-file pass is applied after parsing a whole repo.
-
 use std::collections::HashMap;
 
 use code_parser_ir::FileParseIR;

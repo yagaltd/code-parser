@@ -3,10 +3,8 @@
 ///
 /// Single-pass recursive walk. Tracks current function context for call attribution.
 /// Covers `.ts` and `.tsx` via `tree-sitter-typescript` grammar.
-
 use code_parser_ir::{
-    CallIR, DiagnosticIR, FileParseIR, ImportIR, ImportKind, ParameterIR,
-    SymbolIR, SymbolKind,
+    CallIR, DiagnosticIR, FileParseIR, ImportIR, ImportKind, ParameterIR, SymbolIR, SymbolKind,
 };
 use tree_sitter::Node;
 
@@ -112,41 +110,117 @@ impl<'a> ExtractCtx<'a> {
     fn visit_node(&mut self, node: &Node<'a>) {
         match node.kind() {
             // Container nodes — recurse.
-            "program" | "statement_block" | "class_body" | "object" | "array"
-            | "formal_parameters" | "arguments" | "parenthesized_expression"
-            | "template_substitution" | "jsx_element" | "jsx_self_closing_element"
-            | "jsx_fragment" | "jsx_expression" | "jsx_opening_element"
-            | "jsx_closing_element" | "return_statement"
-            | "if_statement" | "for_statement" | "while_statement"
-            | "switch_statement" | "switch_body" | "try_statement"
-            | "catch_clause" | "finally_clause" | "do_statement"
-            | "with_statement" | "labeled_statement"
-            | "expression_statement" | "comment" | "html_comment"
-            | "ternary_expression" | "binary_expression" | "unary_expression"
-            | "update_expression" | "assignment_expression" | "sequence_expression"
-            | "subscript_expression" | "await_expression" | "yield_expression"
-            | "spread_element" | "template_string" | "string" | "regex"
-            | "number" | "true" | "false" | "null" | "undefined" | "identifier"
-            | "this" | "super" | "type_annotation" | "type_arguments"
-            | "type_parameters" | "union_type" | "intersection_type"
-            | "index_type_query" | "typeof_expression" | "as_expression"
-            | "satisfies_expression" | "non_null_expression" | "optional_type"
-            | "readonly_type" | "tuple_type" | "array_type" | "function_type"
-            | "constructor_type" | "literal_type" | "object_type" | "generic_type"
-            | "indexed_access_type" | "conditional_type" | "mapped_type"
-            | "template_literal_type" | "infer_type" | "predicate_type"
-            | "qualified_name" | "computed_property_name" | "rest_pattern"
-            | "object_pattern" | "array_pattern" | "optional_parameter"
-            | "public_field_definition" | "property_signature"
-            | "method_signature" | "call_signature" | "construct_signature"
-            | "index_signature" | "decorator" | "ambient_declaration"
-            | "abstract_class_declaration" | "internal_module" | "module"
-            | "external_module_declaration" | "declare_statement"
-            | "heritage_clause" | "extends_clause" | "implements_clause"
-            | "enum_body" | "enum_member" | "required_parameter"
-            | "optional_chain" | "named_imports" | "import_specifier"
-            | "namespace_import" | "import_clause" | "export_clause"
-            | "export_specifier" | "named_exports" | "pair" | "shorthand_property_identifier"
+            "program"
+            | "statement_block"
+            | "class_body"
+            | "object"
+            | "array"
+            | "formal_parameters"
+            | "arguments"
+            | "parenthesized_expression"
+            | "template_substitution"
+            | "jsx_element"
+            | "jsx_self_closing_element"
+            | "jsx_fragment"
+            | "jsx_expression"
+            | "jsx_opening_element"
+            | "jsx_closing_element"
+            | "return_statement"
+            | "if_statement"
+            | "for_statement"
+            | "while_statement"
+            | "switch_statement"
+            | "switch_body"
+            | "try_statement"
+            | "catch_clause"
+            | "finally_clause"
+            | "do_statement"
+            | "with_statement"
+            | "labeled_statement"
+            | "expression_statement"
+            | "comment"
+            | "html_comment"
+            | "ternary_expression"
+            | "binary_expression"
+            | "unary_expression"
+            | "update_expression"
+            | "assignment_expression"
+            | "sequence_expression"
+            | "subscript_expression"
+            | "await_expression"
+            | "yield_expression"
+            | "spread_element"
+            | "template_string"
+            | "string"
+            | "regex"
+            | "number"
+            | "true"
+            | "false"
+            | "null"
+            | "undefined"
+            | "identifier"
+            | "this"
+            | "super"
+            | "type_annotation"
+            | "type_arguments"
+            | "type_parameters"
+            | "union_type"
+            | "intersection_type"
+            | "index_type_query"
+            | "typeof_expression"
+            | "as_expression"
+            | "satisfies_expression"
+            | "non_null_expression"
+            | "optional_type"
+            | "readonly_type"
+            | "tuple_type"
+            | "array_type"
+            | "function_type"
+            | "constructor_type"
+            | "literal_type"
+            | "object_type"
+            | "generic_type"
+            | "indexed_access_type"
+            | "conditional_type"
+            | "mapped_type"
+            | "template_literal_type"
+            | "infer_type"
+            | "predicate_type"
+            | "qualified_name"
+            | "computed_property_name"
+            | "rest_pattern"
+            | "object_pattern"
+            | "array_pattern"
+            | "optional_parameter"
+            | "public_field_definition"
+            | "property_signature"
+            | "method_signature"
+            | "call_signature"
+            | "construct_signature"
+            | "index_signature"
+            | "decorator"
+            | "ambient_declaration"
+            | "abstract_class_declaration"
+            | "internal_module"
+            | "module"
+            | "external_module_declaration"
+            | "declare_statement"
+            | "heritage_clause"
+            | "extends_clause"
+            | "implements_clause"
+            | "enum_body"
+            | "enum_member"
+            | "required_parameter"
+            | "optional_chain"
+            | "named_imports"
+            | "import_specifier"
+            | "namespace_import"
+            | "import_clause"
+            | "export_clause"
+            | "export_specifier"
+            | "named_exports"
+            | "pair"
+            | "shorthand_property_identifier"
             | "void_expression" => {
                 self.visit_children(node);
             }
@@ -219,7 +293,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: params,
             return_type,
             is_test: self.is_test_symbol(node),
-            docstring: doc,        });
+            docstring: doc,
+        });
 
         let prev = self.current_caller.replace(name);
         if let Some(body) = node.child_by_field_name("body") {
@@ -261,7 +336,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: Vec::new(),
             return_type: None,
             is_test: self.is_test_symbol(node),
-            docstring: doc,        });
+            docstring: doc,
+        });
 
         // Push class context for method qualified names.
         self.class_stack.push(name);
@@ -303,7 +379,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: params,
             return_type,
             is_test: self.is_test_symbol(node),
-            docstring: None,        });
+            docstring: None,
+        });
 
         let prev = self.current_caller.replace(local_key);
         if let Some(body) = node.child_by_field_name("body") {
@@ -333,7 +410,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: Vec::new(),
             return_type: None,
             is_test: self.is_test_symbol(node),
-            docstring: doc,        });
+            docstring: doc,
+        });
         self.visit_children(node);
     }
 
@@ -356,7 +434,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: Vec::new(),
             return_type: None,
             is_test: self.is_test_symbol(node),
-            docstring: None,        });
+            docstring: None,
+        });
         self.visit_children(node);
     }
 
@@ -379,7 +458,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: Vec::new(),
             return_type: None,
             is_test: self.is_test_symbol(node),
-            docstring: None,        });
+            docstring: None,
+        });
         self.visit_children(node);
     }
 
@@ -398,13 +478,22 @@ impl<'a> ExtractCtx<'a> {
                     // Check if it's initialized with a function or arrow.
                     let value = child.child_by_field_name("value");
                     let is_function = value.as_ref().map_or(false, |v| {
-                        matches!(v.kind(), "function_declaration" | "arrow_function" | "generator_function_declaration")
+                        matches!(
+                            v.kind(),
+                            "function_declaration"
+                                | "arrow_function"
+                                | "generator_function_declaration"
+                        )
                     });
-                    let kind = if is_function { SymbolKind::Function } else { SymbolKind::Constant };
+                    let kind = if is_function {
+                        SymbolKind::Function
+                    } else {
+                        SymbolKind::Constant
+                    };
 
-                    let sig = is_function.then(|| {
-                        value.as_ref().and_then(|v| build_sig(v, self.source))
-                    }).flatten();
+                    let sig = is_function
+                        .then(|| value.as_ref().and_then(|v| build_sig(v, self.source)))
+                        .flatten();
 
                     self.symbols.push(SymbolIR {
                         local_key: name.clone(),
@@ -416,10 +505,13 @@ impl<'a> ExtractCtx<'a> {
                         start_byte: Some(utils::start_byte(node)),
                         end_byte: Some(utils::end_byte(node)),
                         signature: sig,
-                        parameters: value.as_ref().map_or(Vec::new(), |v| extract_params(v, self.source)),
+                        parameters: value
+                            .as_ref()
+                            .map_or(Vec::new(), |v| extract_params(v, self.source)),
                         return_type: value.and_then(|v| field_text(&v, "return_type", self.source)),
-            is_test: self.is_test_symbol(node),
-                        docstring: None,        });
+                        is_test: self.is_test_symbol(node),
+                        docstring: None,
+                    });
 
                     // If it's a function, track calls inside it.
                     if is_function {
@@ -503,7 +595,9 @@ impl<'a> ExtractCtx<'a> {
             .as_ref()
             .map(|n| self.text(n).to_string())
             .unwrap_or_default();
-        let target_module = source_text.trim_matches(|c| c == '\'' || c == '"' || c == '`').to_string();
+        let target_module = source_text
+            .trim_matches(|c| c == '\'' || c == '"' || c == '`')
+            .to_string();
 
         // import_clause is a named child, not a field child.
         let clause = utils::child_by_kind(node, "import_clause");
@@ -623,12 +717,7 @@ fn build_sig(node: &Node, source: &[u8]) -> Option<String> {
     if sig.is_empty() {
         return None;
     }
-    Some(
-        sig.lines()
-            .map(|l| l.trim())
-            .collect::<Vec<_>>()
-            .join(" "),
-    )
+    Some(sig.lines().map(|l| l.trim()).collect::<Vec<_>>().join(" "))
 }
 
 /// Extract parameters from a function or method.
@@ -726,7 +815,9 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
         std::collections::HashMap::new();
 
     for sym in &ctx.symbols {
-        by_name.entry(sym.name.clone()).or_insert_with(|| sym.local_key.clone());
+        by_name
+            .entry(sym.name.clone())
+            .or_insert_with(|| sym.local_key.clone());
         by_qualified
             .entry(sym.qualified_name.clone())
             .or_insert_with(|| sym.local_key.clone());
@@ -754,12 +845,14 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
-
 /// File-level test detection (ts/js): .test. / .spec. files, __tests__ dirs.
 fn is_test_file_path(path: &str) -> bool {
     let base = path.rsplit('/').next().unwrap_or(path);
-    base.contains(".test.") || base.contains(".spec.")
-        || path.contains("/__tests__/") || path.contains("/test/") || path.contains("/tests/")
+    base.contains(".test.")
+        || base.contains(".spec.")
+        || path.contains("/__tests__/")
+        || path.contains("/test/")
+        || path.contains("/tests/")
 }
 
 #[cfg(test)]
@@ -775,7 +868,8 @@ mod tests {
         let tree = parser.parse(source, None).unwrap();
         let ir = TypeScriptExtractor.extract(&tree, source, path);
         let mut ir = ir;
-        ir.metrics = crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
+        ir.metrics =
+            crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
         ir.ir_version = 3;
         ir
     }
@@ -812,10 +906,19 @@ const double = (x: number): number => x * 2;
         let ir = parse_ts(SIMPLE_TS.as_bytes(), "test.ts");
 
         let keys: Vec<&str> = ir.symbols.iter().map(|s| s.local_key.as_str()).collect();
-        assert!(keys.contains(&"User"), "missing interface User, got {keys:?}");
+        assert!(
+            keys.contains(&"User"),
+            "missing interface User, got {keys:?}"
+        );
         assert!(keys.contains(&"Greeter"), "missing class Greeter");
-        assert!(keys.contains(&"Greeter.greet"), "missing method Greeter.greet");
-        assert!(keys.contains(&"Greeter.format"), "missing method Greeter.format");
+        assert!(
+            keys.contains(&"Greeter.greet"),
+            "missing method Greeter.greet"
+        );
+        assert!(
+            keys.contains(&"Greeter.format"),
+            "missing method Greeter.format"
+        );
         assert!(keys.contains(&"sayHello"), "missing fn sayHello");
         assert!(keys.contains(&"double"), "missing const double");
 
@@ -839,24 +942,33 @@ const double = (x: number): number => x * 2;
 
         // Greeter.greet calls this.format
         let greet_calls: Vec<&CallIR> = ir
-            .calls.iter()
+            .calls
+            .iter()
             .filter(|c| c.caller_local_key == "Greeter.greet")
             .collect();
         assert!(!greet_calls.is_empty(), "Greeter.greet should have calls");
-        let format_call = greet_calls.iter().find(|c| c.callee_name.contains("format")).unwrap();
+        let format_call = greet_calls
+            .iter()
+            .find(|c| c.callee_name.contains("format"))
+            .unwrap();
         assert!(format_call.callee_name.contains("format"));
 
         // sayHello calls new Greeter and g.greet
         let say_hello_calls: Vec<&CallIR> = ir
-            .calls.iter()
+            .calls
+            .iter()
             .filter(|c| c.caller_local_key == "sayHello")
             .collect();
         assert!(
-            say_hello_calls.iter().any(|c| c.callee_name.contains("Greeter")),
+            say_hello_calls
+                .iter()
+                .any(|c| c.callee_name.contains("Greeter")),
             "sayHello should call new Greeter"
         );
         assert!(
-            say_hello_calls.iter().any(|c| c.callee_name.contains("greet")),
+            say_hello_calls
+                .iter()
+                .any(|c| c.callee_name.contains("greet")),
             "sayHello should call g.greet"
         );
     }
@@ -867,7 +979,8 @@ const double = (x: number): number => x * 2;
 
         assert!(!ir.imports.is_empty(), "should have imports");
         let use_state = ir
-            .imports.iter()
+            .imports
+            .iter()
             .find(|i| i.import_name == "useState")
             .expect("useState import");
         assert_eq!(use_state.target_module, "react");
@@ -911,7 +1024,6 @@ const double = (x: number): number => x * 2;
             "Golden IR mismatch for TypeScript"
         );
     }
-
 
     #[test]
     fn is_test_flag_detects_test_filenames() {

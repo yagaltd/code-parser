@@ -1,5 +1,4 @@
 /// Shared tree-sitter traversal utilities.
-
 use tree_sitter::Node;
 
 /// Return source text of a node, panicking if location cannot be accessed.

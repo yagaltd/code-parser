@@ -61,8 +61,16 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Parse { file, json, card_only } => cmd_parse(file, json, card_only),
-        Command::ParseRepo { dir, jsonl, languages } => cmd_parse_repo(dir, jsonl, languages),
+        Command::Parse {
+            file,
+            json,
+            card_only,
+        } => cmd_parse(file, json, card_only),
+        Command::ParseRepo {
+            dir,
+            jsonl,
+            languages,
+        } => cmd_parse_repo(dir, jsonl, languages),
         Command::Watch { dir, emit: _ } => cmd_watch(dir),
         Command::Check { file } => cmd_check(file),
     }
@@ -135,8 +143,7 @@ fn cmd_watch(dir: PathBuf) -> anyhow::Result<()> {
         use code_parser_core::watcher::FileWatcher;
         use code_parser_core::HashCache;
 
-        let watcher = FileWatcher::new(&dir)
-            .context("Failed to start file watcher")?;
+        let watcher = FileWatcher::new(&dir).context("Failed to start file watcher")?;
         let mut cache = HashCache::new();
 
         eprintln!("Watching {} for changes...", dir.display());
@@ -150,7 +157,10 @@ fn cmd_watch(dir: PathBuf) -> anyhow::Result<()> {
             for path in paths {
                 // Filter by extension.
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                if !matches!(ext, "rs" | "ts" | "tsx" | "js" | "jsx" | "mjs" | "py" | "pyi") {
+                if !matches!(
+                    ext,
+                    "rs" | "ts" | "tsx" | "js" | "jsx" | "mjs" | "py" | "pyi"
+                ) {
                     continue;
                 }
 

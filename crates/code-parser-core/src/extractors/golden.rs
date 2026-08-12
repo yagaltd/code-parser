@@ -2,7 +2,6 @@
 ///
 /// Shared across all language extractor test modules.
 /// Conditionally compiled (only in test builds).
-
 use code_parser_ir::FileParseIR;
 
 /// Normalize volatile fields before comparing golden IR.
@@ -43,7 +42,10 @@ pub fn normalize_for_compare(ir: &mut FileParseIR) {
 /// (extractors may leave empty placeholder cards until rebuild).
 pub fn validate_schema(ir: &FileParseIR) -> Result<(), String> {
     if ir.ir_version != 1 && ir.ir_version != 2 && ir.ir_version != 3 {
-        return Err(format!("ir_version must be 1, 2 or 3, got {}", ir.ir_version));
+        return Err(format!(
+            "ir_version must be 1, 2 or 3, got {}",
+            ir.ir_version
+        ));
     }
     if ir.path.is_empty() {
         return Err("path is empty".into());
@@ -100,4 +102,3 @@ pub fn validate_schema(ir: &FileParseIR) -> Result<(), String> {
 
     Ok(())
 }
-

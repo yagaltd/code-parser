@@ -53,12 +53,7 @@ pub fn compute(tree: &Tree, source: &[u8], comment_kinds: &[&str]) -> FileMetric
     }
 }
 
-fn collect_comment_lines(
-    node: Node<'_>,
-    source: &[u8],
-    kinds: &[&str],
-    out: &mut HashSet<u32>,
-) {
+fn collect_comment_lines(node: Node<'_>, source: &[u8], kinds: &[&str], out: &mut HashSet<u32>) {
     if kinds.contains(&node.kind()) {
         let start = node.start_byte();
         // Line start of the comment's first byte.

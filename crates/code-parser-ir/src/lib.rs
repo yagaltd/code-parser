@@ -34,7 +34,11 @@ pub struct RetrievalCard {
 
 impl Default for RetrievalCard {
     fn default() -> Self {
-        Self { card_version: 1, est_tokens: 0, text: String::new() }
+        Self {
+            card_version: 1,
+            est_tokens: 0,
+            text: String::new(),
+        }
     }
 }
 
@@ -42,10 +46,10 @@ impl Default for RetrievalCard {
 /// Cards are always built — these only control text caps.
 #[derive(Debug, Clone)]
 pub struct CardFormat {
-    pub max_file_chars: usize,    // default 2048
-    pub max_symbol_chars: usize,  // default 512
-    pub max_symbol_lines: usize,  // default 40
-    pub max_imports: usize,       // default 24
+    pub max_file_chars: usize,     // default 2048
+    pub max_symbol_chars: usize,   // default 512
+    pub max_symbol_lines: usize,   // default 40
+    pub max_imports: usize,        // default 24
     pub max_call_histogram: usize, // default 15
 }
 
@@ -64,10 +68,31 @@ impl Default for CardFormat {
 /// Noise call names excluded from call histograms.
 /// Lang-tunable later; shared constant for now.
 pub const CALL_NOISE_DENYLIST: &[&str] = &[
-    "unwrap", "clone", "into", "to_string", "ok", "some", "none",
-    "push", "map", "and_then", "or_else", "unwrap_or", "unwrap_or_else",
-    "expect", "as_ref", "as_mut", "iter", "collect", "len", "is_empty",
-    "new", "default", "from", "try_from", "try_into",
+    "unwrap",
+    "clone",
+    "into",
+    "to_string",
+    "ok",
+    "some",
+    "none",
+    "push",
+    "map",
+    "and_then",
+    "or_else",
+    "unwrap_or",
+    "unwrap_or_else",
+    "expect",
+    "as_ref",
+    "as_mut",
+    "iter",
+    "collect",
+    "len",
+    "is_empty",
+    "new",
+    "default",
+    "from",
+    "try_from",
+    "try_into",
 ];
 
 /// Symbol kind sort order for deterministic card output.
@@ -311,13 +336,19 @@ pub fn build_file_card(ir: &FileParseIR, fmt: &CardFormat) -> RetrievalCard {
 
     // IMPORTS line
     if !ir.imports.is_empty() {
-        let mut import_mods: Vec<&str> = ir.imports.iter()
+        let mut import_mods: Vec<&str> = ir
+            .imports
+            .iter()
             .map(|i| i.target_module.as_str())
             .collect();
         import_mods.sort();
         import_mods.dedup();
         let total = import_mods.len();
-        let shown = import_mods.iter().take(fmt.max_imports).copied().collect::<Vec<_>>();
+        let shown = import_mods
+            .iter()
+            .take(fmt.max_imports)
+            .copied()
+            .collect::<Vec<_>>();
         let mut line = format!("IMPORTS {}", shown.join(", "));
         if total > fmt.max_imports {
             line.push_str(&format!(" (+{} more)", total - fmt.max_imports));
@@ -331,7 +362,8 @@ pub fn build_file_card(ir: &FileParseIR, fmt: &CardFormat) -> RetrievalCard {
         // Sort by (kind_order, qualified_name)
         let mut sorted: Vec<&SymbolIR> = ir.symbols.iter().collect();
         sorted.sort_by(|a, b| {
-            kind_order(&a.kind).cmp(&kind_order(&b.kind))
+            kind_order(&a.kind)
+                .cmp(&kind_order(&b.kind))
                 .then_with(|| a.qualified_name.cmp(&b.qualified_name))
         });
 
@@ -357,26 +389,36 @@ pub fn build_file_card(ir: &FileParseIR, fmt: &CardFormat) -> RetrievalCard {
     if !ir.calls.is_empty() {
         let mut hist: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
         for call in &ir.calls {
-            let name = call.callee_name.split("::").last().unwrap_or(&call.callee_name);
+            let name = call
+                .callee_name
+                .split("::")
+                .last()
+                .unwrap_or(&call.callee_name);
             if !CALL_NOISE_DENYLIST.contains(&name) {
                 *hist.entry(name.to_string()).or_insert(0) += 1;
             }
         }
         if !hist.is_empty() {
             let sorted = sort_histogram(&hist);
-            let parts: Vec<String> = sorted.iter()
+            let parts: Vec<String> = sorted
+                .iter()
                 .take(fmt.max_call_histogram)
                 .map(|(name, count)| format!("{}×{}", name, count))
                 .collect();
             lines.push(format!("CALLS_OUT {}", parts.join(" ")));
             if sorted.len() > fmt.max_call_histogram {
-                lines.push(format!("  (+{} more)", sorted.len() - fmt.max_call_histogram));
+                lines.push(format!(
+                    "  (+{} more)",
+                    sorted.len() - fmt.max_call_histogram
+                ));
             }
         }
     }
 
     // PUB line — top-level public names (heuristic: not starting with lowercase)
-    let pubs: Vec<&str> = ir.symbols.iter()
+    let pubs: Vec<&str> = ir
+        .symbols
+        .iter()
         .filter(|s| s.name.chars().next().is_some_and(|c| c.is_uppercase()))
         .map(|s| s.name.as_str())
         .collect();
@@ -405,7 +447,7 @@ pub fn build_file_card(ir: &FileParseIR, fmt: &CardFormat) -> RetrievalCard {
 pub fn build_symbol_card(
     ir_path: &str,
     sym: &SymbolIR,
-    calls: &[&CallIR],    // calls where caller_local_key == sym.local_key
+    calls: &[&CallIR], // calls where caller_local_key == sym.local_key
     fmt: &CardFormat,
 ) -> RetrievalCard {
     let mut lines: Vec<String> = Vec::new();
@@ -432,7 +474,8 @@ pub fn build_symbol_card(
     }
 
     if !calls.is_empty() {
-        let mut names: Vec<&str> = calls.iter()
+        let mut names: Vec<&str> = calls
+            .iter()
             .map(|c| c.callee_name.as_str())
             .filter(|n| {
                 let short = n.split("::").last().unwrap_or(n);
@@ -486,9 +529,12 @@ pub fn build_all_cards(ir: &FileParseIR, fmt: &CardFormat) -> (RetrievalCard, Ve
             .push(call);
     }
 
-    let symbol_cards: Vec<RetrievalCard> = ir.symbols.iter()
+    let symbol_cards: Vec<RetrievalCard> = ir
+        .symbols
+        .iter()
         .map(|sym| {
-            let calls = calls_by_caller.get(sym.local_key.as_str())
+            let calls = calls_by_caller
+                .get(sym.local_key.as_str())
                 .map(|v| v.as_slice())
                 .unwrap_or(&[]);
             build_symbol_card(&ir.path, sym, calls, fmt)
@@ -533,8 +579,10 @@ mod tests {
                     name: "main".into(),
                     qualified_name: "main".into(),
                     kind: SymbolKind::Function,
-                    start_line: 10, end_line: 20,
-                    start_byte: None, end_byte: None,
+                    start_line: 10,
+                    end_line: 20,
+                    start_byte: None,
+                    end_byte: None,
                     signature: Some("fn main()".into()),
                     parameters: vec![],
                     return_type: None,
@@ -545,8 +593,10 @@ mod tests {
                     name: "Cache".into(),
                     qualified_name: "Cache".into(),
                     kind: SymbolKind::Struct,
-                    start_line: 1, end_line: 8,
-                    start_byte: None, end_byte: None,
+                    start_line: 1,
+                    end_line: 8,
+                    start_byte: None,
+                    end_byte: None,
                     signature: None,
                     parameters: vec![],
                     return_type: None,
@@ -573,15 +623,13 @@ mod tests {
                     column: None,
                 },
             ],
-            imports: vec![
-                ImportIR {
-                    import_name: "HashMap".into(),
-                    target_module: "std::collections".into(),
-                    kind: ImportKind::Named,
-                    line: Some(1),
-                    column: None,
-                },
-            ],
+            imports: vec![ImportIR {
+                import_name: "HashMap".into(),
+                target_module: "std::collections".into(),
+                kind: ImportKind::Named,
+                line: Some(1),
+                column: None,
+            }],
             diagnostics: vec![],
             retrieval_card: RetrievalCard::default(),
             symbol_cards: vec![],
@@ -618,7 +666,10 @@ mod tests {
         let ir = make_test_ir(); // has Cache::new and println
         let card = build_file_card(&ir, &CardFormat::default());
         // "new" is in denylist, so Cache::new should not appear as CALLS_OUT
-        assert!(!card.text.contains("new×"), "noise call 'new' should be filtered");
+        assert!(
+            !card.text.contains("new×"),
+            "noise call 'new' should be filtered"
+        );
         // println is not in denylist
         assert!(card.text.contains("println×"));
     }
@@ -626,7 +677,10 @@ mod tests {
     #[test]
     fn file_card_truncates_at_max_chars() {
         let ir = make_test_ir();
-        let tiny = CardFormat { max_file_chars: 80, ..Default::default() };
+        let tiny = CardFormat {
+            max_file_chars: 80,
+            ..Default::default()
+        };
         let card = build_file_card(&ir, &tiny);
         assert!(card.text.len() <= 80);
         assert!(card.text.starts_with("FILE"));
@@ -636,9 +690,15 @@ mod tests {
     fn symbol_card_includes_sym_line_and_sig() {
         let ir = make_test_ir();
         let sym = &ir.symbols[0]; // main
-        let calls: Vec<&CallIR> = ir.calls.iter().filter(|c| c.caller_local_key == "main").collect();
+        let calls: Vec<&CallIR> = ir
+            .calls
+            .iter()
+            .filter(|c| c.caller_local_key == "main")
+            .collect();
         let card = build_symbol_card("src/main.rs", sym, &calls, &CardFormat::default());
-        assert!(card.text.contains("SYM path=src/main.rs qname=main kind=Function L10-20"));
+        assert!(card
+            .text
+            .contains("SYM path=src/main.rs qname=main kind=Function L10-20"));
         assert!(card.text.contains("SIG fn main()"));
         assert!(card.text.contains("DOC Entry point."));
     }
@@ -647,7 +707,11 @@ mod tests {
     fn symbol_card_includes_calls() {
         let ir = make_test_ir();
         let sym = &ir.symbols[0]; // main
-        let calls: Vec<&CallIR> = ir.calls.iter().filter(|c| c.caller_local_key == "main").collect();
+        let calls: Vec<&CallIR> = ir
+            .calls
+            .iter()
+            .filter(|c| c.caller_local_key == "main")
+            .collect();
         let card = build_symbol_card("src/main.rs", sym, &calls, &CardFormat::default());
         // println should appear (not in denylist), Cache::new split to "new" → denylisted
         assert!(card.text.contains("println"));
@@ -670,4 +734,3 @@ mod tests {
         assert!(!card.text.contains("SYMBOLS"));
     }
 }
-

@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use code_parser_core::HashCache;
 
 fn tmp_dir(label: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("code-parser-test-{}-{}", std::process::id(), label));
+    let dir =
+        std::env::temp_dir().join(format!("code-parser-test-{}-{}", std::process::id(), label));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     dir

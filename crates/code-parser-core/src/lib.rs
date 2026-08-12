@@ -11,23 +11,23 @@ use code_parser_ir::FileParseIR;
 
 pub mod cache;
 pub mod extractors;
-pub mod metrics;
 pub mod file_collect;
 pub mod hash;
 pub mod language;
+pub mod metrics;
 pub mod parser;
 pub mod resolve;
 pub mod watcher;
 
-use extractors::LanguageExtractor;
+#[cfg(feature = "javascript")]
+use extractors::javascript::JavaScriptExtractor;
+#[cfg(feature = "python")]
+use extractors::python::PythonExtractor;
 #[cfg(feature = "rust")]
 use extractors::rust::RustExtractor;
 #[cfg(feature = "typescript")]
 use extractors::typescript::TypeScriptExtractor;
-#[cfg(feature = "python")]
-use extractors::python::PythonExtractor;
-#[cfg(feature = "javascript")]
-use extractors::javascript::JavaScriptExtractor;
+use extractors::LanguageExtractor;
 use language::Language;
 
 pub use cache::HashCache;
@@ -48,8 +48,7 @@ pub struct ParseResult {
 #[allow(unreachable_patterns)]
 pub fn parse_file(path: &Path) -> Result<ParseResult, anyhow::Error> {
     let path_str = path.to_string_lossy().to_string();
-    let source = std::fs::read(path)
-        .with_context(|| format!("Failed to read {path_str}"))?;
+    let source = std::fs::read(path).with_context(|| format!("Failed to read {path_str}"))?;
     let ir = parse_file_bytes(&path_str, &source)?;
     Ok(ParseResult {
         ir,
@@ -61,13 +60,19 @@ pub fn parse_file(path: &Path) -> Result<ParseResult, anyhow::Error> {
 ///
 /// Collects source files via gitignore-aware walk, parses each,
 /// then applies the cross-file resolution pass.
-pub fn parse_repo(root: &Path, languages: Option<Vec<Language>>) -> Result<Vec<ParseResult>, anyhow::Error> {
-    let full_root = root
-        .canonicalize()
-        .unwrap_or_else(|_| root.to_path_buf());
+pub fn parse_repo(
+    root: &Path,
+    languages: Option<Vec<Language>>,
+) -> Result<Vec<ParseResult>, anyhow::Error> {
+    let full_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     let root_str = full_root.to_string_lossy().to_string();
     let languages = languages.unwrap_or_else(|| {
-        vec![Language::Rust, Language::TypeScript, Language::JavaScript, Language::Python]
+        vec![
+            Language::Rust,
+            Language::TypeScript,
+            Language::JavaScript,
+            Language::Python,
+        ]
     });
 
     let paths = file_collect::collect_source_files(&root_str, &languages)
@@ -113,11 +118,11 @@ pub fn parse_repo(root: &Path, languages: Option<Vec<Language>>) -> Result<Vec<P
 /// `ingest-via-parser` feature bridge).
 #[allow(unreachable_patterns)]
 pub fn parse_file_bytes(path: &str, source: &[u8]) -> Result<FileParseIR, anyhow::Error> {
-    let language = Language::from_path(path)
-        .with_context(|| format!("Unsupported file extension: {path}"))?;
+    let language =
+        Language::from_path(path).with_context(|| format!("Unsupported file extension: {path}"))?;
 
-    let tree = parser::parse(language, source)
-        .with_context(|| format!("Failed to parse {path}"))?;
+    let tree =
+        parser::parse(language, source).with_context(|| format!("Failed to parse {path}"))?;
 
     let mut ir = match language {
         #[cfg(feature = "rust")]
@@ -134,7 +139,9 @@ pub fn parse_file_bytes(path: &str, source: &[u8]) -> Result<FileParseIR, anyhow
             extractor.extract(&tree, source, path)
         }
         #[cfg(not(feature = "typescript"))]
-        Language::TypeScript => anyhow::bail!("TypeScript extractor not enabled. Build with --features typescript"),
+        Language::TypeScript => {
+            anyhow::bail!("TypeScript extractor not enabled. Build with --features typescript")
+        }
 
         Language::JavaScript => {
             #[cfg(feature = "javascript")]
@@ -144,7 +151,7 @@ pub fn parse_file_bytes(path: &str, source: &[u8]) -> Result<FileParseIR, anyhow
             }
             #[cfg(not(feature = "javascript"))]
             anyhow::bail!("JavaScript extractor not enabled. Build with --features javascript")
-        },
+        }
 
         #[cfg(feature = "python")]
         Language::Python => {
@@ -152,17 +159,15 @@ pub fn parse_file_bytes(path: &str, source: &[u8]) -> Result<FileParseIR, anyhow
             extractor.extract(&tree, source, path)
         }
         #[cfg(not(feature = "python"))]
-        Language::Python => anyhow::bail!("Python extractor not enabled. Build with --features python"),
+        Language::Python => {
+            anyhow::bail!("Python extractor not enabled. Build with --features python")
+        }
 
         _ => anyhow::bail!("Extractor for {language:?} not yet implemented"),
     };
 
     // A0: per-file line metrics (code/comment/blank) from the tree.
-    ir.metrics = metrics::compute(
-        &tree,
-        source,
-        metrics::comment_kinds(&ir.language),
-    );
+    ir.metrics = metrics::compute(&tree, source, metrics::comment_kinds(&ir.language));
 
     // A1: always build retrieval cards after extract+resolve.
     ir.ir_version = 3;
@@ -186,8 +191,7 @@ pub fn parse_file_cached(
     let path_str = path.to_string_lossy().to_string();
 
     // Read bytes for hash check.
-    let source = std::fs::read(path)
-        .with_context(|| format!("Failed to read {path_str}"))?;
+    let source = std::fs::read(path).with_context(|| format!("Failed to read {path_str}"))?;
     let hash = hash::hash_bytes(&source);
 
     // Short-circuit: same hash → skip.

@@ -2,10 +2,8 @@
 /// symbols, calls, imports, and diagnostics.
 ///
 /// Single-pass recursive walk. Tracks current function and class context.
-
 use code_parser_ir::{
-    CallIR, DiagnosticIR, FileParseIR, ImportIR, ImportKind, ParameterIR,
-    SymbolIR, SymbolKind,
+    CallIR, DiagnosticIR, FileParseIR, ImportIR, ImportKind, ParameterIR, SymbolIR, SymbolKind,
 };
 use tree_sitter::Node;
 
@@ -83,7 +81,10 @@ impl<'a> ExtractCtx<'a> {
         if is_test_file_path(self.file_path) {
             return true;
         }
-        if let Some(name) = node.child_by_field_name("name").map(|n| self.text(&n).to_string()) {
+        if let Some(name) = node
+            .child_by_field_name("name")
+            .map(|n| self.text(&n).to_string())
+        {
             return name.starts_with("test_") || name.starts_with("Test");
         }
         false
@@ -98,9 +99,20 @@ impl<'a> ExtractCtx<'a> {
     fn visit_node(&mut self, node: &Node<'a>) {
         match node.kind() {
             // Container nodes — recurse into children.
-            "module" | "block" | "parameters" | "expression_list" | "argument_list"
-            | "pattern_list" | "tuple" | "parenthesized_expression" | "list"
-            | "dictionary" | "set" | "string" | "comment" | "decorator" => {
+            "module"
+            | "block"
+            | "parameters"
+            | "expression_list"
+            | "argument_list"
+            | "pattern_list"
+            | "tuple"
+            | "parenthesized_expression"
+            | "list"
+            | "dictionary"
+            | "set"
+            | "string"
+            | "comment"
+            | "decorator" => {
                 self.visit_children(node);
             }
 
@@ -187,7 +199,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: params,
             return_type,
             is_test: self.is_test_symbol(node),
-            docstring: doc,        });
+            docstring: doc,
+        });
 
         // Visit body with caller context.
         let prev = self.current_caller.replace(local_key);
@@ -217,7 +230,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: Vec::new(),
             return_type: None,
             is_test: self.is_test_symbol(node),
-            docstring: doc,        });
+            docstring: doc,
+        });
 
         // Push class context so methods get qualified names.
         self.class_stack.push(name);
@@ -315,7 +329,12 @@ impl<'a> ExtractCtx<'a> {
                 "dotted_name" => {
                     let name = self.text(&child).to_string();
                     // Only push if it's not the module_name itself.
-                    if Some(name.as_str()) != node.child_by_field_name("module_name").as_ref().map(|n| self.text(n)) {
+                    if Some(name.as_str())
+                        != node
+                            .child_by_field_name("module_name")
+                            .as_ref()
+                            .map(|n| self.text(n))
+                    {
                         self.imports.push(ImportIR {
                             import_name: name,
                             target_module: module.clone(),
@@ -495,10 +514,7 @@ fn extract_docstring(node: &Node, source: &[u8]) -> Option<String> {
             let inner = text
                 .strip_prefix("\"\"\"")
                 .or_else(|| text.strip_prefix("'''"))
-                .and_then(|t| {
-                    t.strip_suffix("\"\"\"")
-                        .or_else(|| t.strip_suffix("'''"))
-                });
+                .and_then(|t| t.strip_suffix("\"\"\"").or_else(|| t.strip_suffix("'''")));
             if let Some(s) = inner {
                 return Some(s.trim().to_string());
             }
@@ -552,13 +568,15 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
-
 /// File-level test detection (python): test_*.py files and tests/ dirs.
 fn is_test_file_path(path: &str) -> bool {
     let base = path.rsplit('/').next().unwrap_or(path);
-    base.starts_with("test_") || base.ends_with("_test.py")
-        || path.contains("/tests/") || path.contains("/test/")
-        || path.starts_with("tests/") || path.starts_with("test/")
+    base.starts_with("test_")
+        || base.ends_with("_test.py")
+        || path.contains("/tests/")
+        || path.contains("/test/")
+        || path.starts_with("tests/")
+        || path.starts_with("test/")
 }
 
 #[cfg(test)]
@@ -573,7 +591,8 @@ mod tests {
         let tree = parser.parse(source, None).unwrap();
         let ir = PythonExtractor.extract(&tree, source, path);
         let mut ir = ir;
-        ir.metrics = crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
+        ir.metrics =
+            crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
         ir.ir_version = 3;
         ir
     }
@@ -597,14 +616,20 @@ def main():
         assert_eq!(ir.language, "Python");
 
         let sym_names: Vec<&str> = ir.symbols.iter().map(|s| s.name.as_str()).collect();
-        assert!(sym_names.contains(&"Greeter"), "missing class Greeter: {sym_names:?}");
+        assert!(
+            sym_names.contains(&"Greeter"),
+            "missing class Greeter: {sym_names:?}"
+        );
         assert!(sym_names.contains(&"greet"), "missing method greet");
         assert!(sym_names.contains(&"main"), "missing fn main");
 
         // Class
         let cls = ir.symbols.iter().find(|s| s.name == "Greeter").unwrap();
         assert_eq!(cls.kind, SymbolKind::Class);
-        assert!(cls.docstring.as_ref().map_or(false, |d| d.contains("friendly")));
+        assert!(cls
+            .docstring
+            .as_ref()
+            .map_or(false, |d| d.contains("friendly")));
 
         // Method
         let greet = ir.symbols.iter().find(|s| s.name == "greet").unwrap();
@@ -633,10 +658,16 @@ def main():
             .collect();
         assert!(main_calls.len() >= 2, "expected >=2 calls from main");
 
-        let constructor = main_calls.iter().find(|c| c.callee_name == "Greeter").unwrap();
+        let constructor = main_calls
+            .iter()
+            .find(|c| c.callee_name == "Greeter")
+            .unwrap();
         assert_eq!(constructor.line, 9);
 
-        let method_call = main_calls.iter().find(|c| c.callee_name == "g.greet").unwrap();
+        let method_call = main_calls
+            .iter()
+            .find(|c| c.callee_name == "g.greet")
+            .unwrap();
         assert_eq!(method_call.line, 10);
         // g.greet is in-file resolved (greet is a method in Greeter)
         // V1: bare name match won't find g.greet → stays unresolved, not external
@@ -647,7 +678,10 @@ def main():
     fn simple_fixture_imports() {
         let ir = parse_python(SIMPLE_PY.as_bytes(), "simple.py");
 
-        assert!(ir.imports.iter().any(|i| i.import_name == "os"), "missing os import");
+        assert!(
+            ir.imports.iter().any(|i| i.import_name == "os"),
+            "missing os import"
+        );
     }
 
     #[test]
@@ -655,11 +689,19 @@ def main():
         let src = b"from collections import defaultdict, Counter\n";
         let ir = parse_python(src, "t.py");
 
-        let dd = ir.imports.iter().find(|i| i.import_name == "defaultdict").unwrap();
+        let dd = ir
+            .imports
+            .iter()
+            .find(|i| i.import_name == "defaultdict")
+            .unwrap();
         assert_eq!(dd.target_module, "collections");
         assert_eq!(dd.kind, ImportKind::Named);
 
-        let ct = ir.imports.iter().find(|i| i.import_name == "Counter").unwrap();
+        let ct = ir
+            .imports
+            .iter()
+            .find(|i| i.import_name == "Counter")
+            .unwrap();
         assert_eq!(ct.target_module, "collections");
     }
 
@@ -747,7 +789,6 @@ def main():
         );
     }
 
-
     #[test]
     fn is_test_flag_detects_python_test_conventions() {
         let src = "def test_compute():\n    return 1\n\ndef helper():\n    return 2\n\nclass TestWidget:\n    def test_click(self):\n        pass\n\n    def render(self):\n        pass\n";
@@ -762,8 +803,14 @@ def main():
         assert!(flag("test_compute"), "test_* fn must be test");
         assert!(!flag("helper"));
         assert!(flag("TestWidget"), "Test* class must be test");
-        assert!(flag("TestWidget.test_click"), "method in Test class must be test");
-        assert!(!flag("TestWidget.render"), "non-test method in Test class must NOT be test");
+        assert!(
+            flag("TestWidget.test_click"),
+            "method in Test class must be test"
+        );
+        assert!(
+            !flag("TestWidget.render"),
+            "non-test method in Test class must NOT be test"
+        );
 
         let file_ir = parse_python(b"def f():\n    pass\n", "tests/test_widget.py");
         assert!(file_ir.symbols[0].is_test, "test_*.py file must be test");

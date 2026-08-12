@@ -2,7 +2,6 @@
 /// symbols, calls, imports, and diagnostics.
 ///
 /// Single-pass recursive walk. Tracks current function/class context for call attribution.
-
 use code_parser_ir::{
     CallIR, DiagnosticIR, FileParseIR, ImportIR, ImportKind, ParameterIR, SymbolIR, SymbolKind,
 };
@@ -91,10 +90,21 @@ impl<'a> ExtractCtx<'a> {
     fn visit_node(&mut self, node: &Node<'a>) {
         match node.kind() {
             // Container nodes — recurse.
-            "program" | "statement_block" | "object" | "array" | "parenthesized_expression"
-            | "arguments" | "formal_parameters" | "object_pattern" | "array_pattern"
-            | "switch_body" | "template_substitution" | "computed_property_name"
-            | "comment" | "html_comment" | "hash_bang_line" => {
+            "program"
+            | "statement_block"
+            | "object"
+            | "array"
+            | "parenthesized_expression"
+            | "arguments"
+            | "formal_parameters"
+            | "object_pattern"
+            | "array_pattern"
+            | "switch_body"
+            | "template_substitution"
+            | "computed_property_name"
+            | "comment"
+            | "html_comment"
+            | "hash_bang_line" => {
                 self.visit_children(node);
             }
 
@@ -123,24 +133,65 @@ impl<'a> ExtractCtx<'a> {
             }
 
             // Expressions that may contain calls — recurse.
-            "expression_statement" | "return_statement" | "binary_expression"
-            | "unary_expression" | "update_expression" | "await_expression"
-            | "yield_expression" | "conditional_expression" | "sequence_expression"
-            | "assignment_expression" | "augmented_assignment_expression"
-            | "if_statement" | "switch_statement" | "for_statement" | "for_in_statement"
-            | "while_statement" | "do_statement" | "try_statement" | "catch_clause"
-            | "finally_clause" | "with_statement" | "labeled_statement"
-            | "throw_statement" | "debugger_statement" | "empty_statement"
-            | "spread_element" | "template_string" | "string" | "regex"
-            | "number" | "true" | "false" | "null" | "undefined" | "this"
-            | "super" | "identifier" | "property_identifier" | "shorthand_property_identifier"
-            | "statement_identifier" | "arrow_function" | "generator_function"
-            | "generator_function_declaration" | "class" | "extends_clause"
-            | "class_body" | "class_heritage" | "decorator" | "decorator_call_expression"
-            | "pair" | "jsx_element" | "jsx_self_closing_element" | "jsx_opening_element"
-            | "jsx_closing_element" | "jsx_expression" | "jsx_fragment"
-            | "jsx_attribute" | "jsx_text" | "jsx_namespace_name"
-            => {
+            "expression_statement"
+            | "return_statement"
+            | "binary_expression"
+            | "unary_expression"
+            | "update_expression"
+            | "await_expression"
+            | "yield_expression"
+            | "conditional_expression"
+            | "sequence_expression"
+            | "assignment_expression"
+            | "augmented_assignment_expression"
+            | "if_statement"
+            | "switch_statement"
+            | "for_statement"
+            | "for_in_statement"
+            | "while_statement"
+            | "do_statement"
+            | "try_statement"
+            | "catch_clause"
+            | "finally_clause"
+            | "with_statement"
+            | "labeled_statement"
+            | "throw_statement"
+            | "debugger_statement"
+            | "empty_statement"
+            | "spread_element"
+            | "template_string"
+            | "string"
+            | "regex"
+            | "number"
+            | "true"
+            | "false"
+            | "null"
+            | "undefined"
+            | "this"
+            | "super"
+            | "identifier"
+            | "property_identifier"
+            | "shorthand_property_identifier"
+            | "statement_identifier"
+            | "arrow_function"
+            | "generator_function"
+            | "generator_function_declaration"
+            | "class"
+            | "extends_clause"
+            | "class_body"
+            | "class_heritage"
+            | "decorator"
+            | "decorator_call_expression"
+            | "pair"
+            | "jsx_element"
+            | "jsx_self_closing_element"
+            | "jsx_opening_element"
+            | "jsx_closing_element"
+            | "jsx_expression"
+            | "jsx_fragment"
+            | "jsx_attribute"
+            | "jsx_text"
+            | "jsx_namespace_name" => {
                 self.visit_children(node);
             }
 
@@ -177,7 +228,11 @@ impl<'a> ExtractCtx<'a> {
         let sig = build_sig(node, self.source, &name);
 
         let (qualified_name, local_key, kind) = if let Some(ty) = class_ty {
-            (format!("{ty}::{name}"), format!("{ty}::{name}"), SymbolKind::Method)
+            (
+                format!("{ty}::{name}"),
+                format!("{ty}::{name}"),
+                SymbolKind::Method,
+            )
         } else {
             (name.clone(), name.clone(), SymbolKind::Function)
         };
@@ -195,7 +250,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: params,
             return_type: None,
             is_test: self.is_test_symbol(node),
-            docstring: extract_jsdoc(node, self.source),        });
+            docstring: extract_jsdoc(node, self.source),
+        });
 
         // Visit body with caller context.
         let prev = self.current_caller.replace(local_key);
@@ -238,7 +294,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: Vec::new(),
             return_type: None,
             is_test: self.is_test_symbol(node),
-            docstring: extract_jsdoc(node, self.source),        });
+            docstring: extract_jsdoc(node, self.source),
+        });
 
         // Push class context so methods get qualified names.
         self.class_stack.push(name.clone());
@@ -288,7 +345,8 @@ impl<'a> ExtractCtx<'a> {
             parameters: params,
             return_type: None,
             is_test: self.is_test_symbol(node),
-            docstring: extract_jsdoc(node, self.source),        });
+            docstring: extract_jsdoc(node, self.source),
+        });
 
         let prev = self.current_caller.replace(local_key);
         if let Some(body) = node.child_by_field_name("body") {
@@ -344,8 +402,9 @@ impl<'a> ExtractCtx<'a> {
                     signature: Some(sig),
                     parameters: params,
                     return_type: None,
-            is_test: self.is_test_symbol(node),
-                    docstring: None,        });
+                    is_test: self.is_test_symbol(node),
+                    docstring: None,
+                });
 
                 let prev = self.current_caller.replace(name);
                 if let Some(body) = val.child_by_field_name("body") {
@@ -589,13 +648,11 @@ fn extract_params(node: &Node, source: &[u8]) -> Vec<ParameterIR> {
                     .map(|n| utils::node_text(&n, source).to_string())
                     .unwrap_or_default()
             }
-            "rest_pattern" => {
-                child
-                    .child_by_field_name("pattern")
-                    .or_else(|| child.child(0))
-                    .map(|n| utils::node_text(&n, source).to_string())
-                    .unwrap_or_else(|| "...".to_string())
-            }
+            "rest_pattern" => child
+                .child_by_field_name("pattern")
+                .or_else(|| child.child(0))
+                .map(|n| utils::node_text(&n, source).to_string())
+                .unwrap_or_else(|| "...".to_string()),
             "object_pattern" | "array_pattern" => {
                 // Destructured — use a placeholder.
                 utils::node_text(&child, source).to_string()
@@ -670,7 +727,9 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
         std::collections::HashMap::new();
 
     for sym in &ctx.symbols {
-        by_name.entry(sym.name.clone()).or_insert_with(|| sym.local_key.clone());
+        by_name
+            .entry(sym.name.clone())
+            .or_insert_with(|| sym.local_key.clone());
         by_qualified
             .entry(sym.qualified_name.clone())
             .or_insert_with(|| sym.local_key.clone());
@@ -706,12 +765,14 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
-
 /// File-level test detection (ts/js): .test. / .spec. files, __tests__ dirs.
 fn is_test_file_path(path: &str) -> bool {
     let base = path.rsplit('/').next().unwrap_or(path);
-    base.contains(".test.") || base.contains(".spec.")
-        || path.contains("/__tests__/") || path.contains("/test/") || path.contains("/tests/")
+    base.contains(".test.")
+        || base.contains(".spec.")
+        || path.contains("/__tests__/")
+        || path.contains("/test/")
+        || path.contains("/tests/")
 }
 
 #[cfg(test)]
@@ -726,7 +787,8 @@ mod tests {
         let tree = parser.parse(source, None).unwrap();
         let ir = JavaScriptExtractor.extract(&tree, source, path);
         let mut ir = ir;
-        ir.metrics = crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
+        ir.metrics =
+            crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
         ir.ir_version = 3;
         ir
     }
@@ -769,28 +831,48 @@ console.log("done");
         assert_eq!(ir.language, "JavaScript");
 
         // Class.
-        let calc_class = ir.symbols.iter().find(|s| s.name == "Calculator").expect("Calculator");
+        let calc_class = ir
+            .symbols
+            .iter()
+            .find(|s| s.name == "Calculator")
+            .expect("Calculator");
         assert_eq!(calc_class.kind, SymbolKind::Class);
         assert_eq!(calc_class.start_line, 7);
 
         // Constructor method.
-        let ctor = ir.symbols.iter().find(|s| s.local_key == "Calculator::constructor").expect("constructor");
+        let ctor = ir
+            .symbols
+            .iter()
+            .find(|s| s.local_key == "Calculator::constructor")
+            .expect("constructor");
         assert_eq!(ctor.kind, SymbolKind::Method);
         assert_eq!(ctor.parameters.len(), 1);
         assert_eq!(ctor.parameters[0].name, "initial");
 
         // Method.
-        let add_method = ir.symbols.iter().find(|s| s.local_key == "Calculator::add").expect("add method");
+        let add_method = ir
+            .symbols
+            .iter()
+            .find(|s| s.local_key == "Calculator::add")
+            .expect("add method");
         assert_eq!(add_method.kind, SymbolKind::Method);
         assert_eq!(add_method.parameters[0].name, "n");
 
         // Function.
-        let multiply = ir.symbols.iter().find(|s| s.name == "multiply").expect("multiply");
+        let multiply = ir
+            .symbols
+            .iter()
+            .find(|s| s.name == "multiply")
+            .expect("multiply");
         assert_eq!(multiply.kind, SymbolKind::Function);
         assert_eq!(multiply.parameters.len(), 2);
 
         // Arrow function (const divide).
-        let divide = ir.symbols.iter().find(|s| s.name == "divide").expect("divide");
+        let divide = ir
+            .symbols
+            .iter()
+            .find(|s| s.name == "divide")
+            .expect("divide");
         assert_eq!(divide.kind, SymbolKind::Function);
         assert_eq!(divide.parameters.len(), 2);
     }
@@ -802,10 +884,18 @@ console.log("done");
         let ir = parse_js(src, "calls.js");
 
         // Calls inside function body should be captured.
-        let foo_calls: Vec<_> = ir.calls.iter().filter(|c| c.caller_local_key == "foo").collect();
+        let foo_calls: Vec<_> = ir
+            .calls
+            .iter()
+            .filter(|c| c.caller_local_key == "foo")
+            .collect();
         assert!(foo_calls.len() >= 1, "expected calls from foo");
 
-        let bar = ir.calls.iter().find(|c| c.callee_name == "bar").expect("bar");
+        let bar = ir
+            .calls
+            .iter()
+            .find(|c| c.callee_name == "bar")
+            .expect("bar");
         assert_eq!(bar.line, 1);
 
         // baz.qux — dotted method call.
@@ -817,13 +907,21 @@ console.log("done");
         let ir = parse_js(SIMPLE_JS.as_bytes(), "fixtures/javascript/simple.js");
 
         // Named import: { add } from './math.js'
-        let named = ir.imports.iter().find(|i| i.import_name == "add").expect("add import");
+        let named = ir
+            .imports
+            .iter()
+            .find(|i| i.import_name == "add")
+            .expect("add import");
         assert_eq!(named.kind, ImportKind::Named);
         assert_eq!(named.target_module, "./math.js");
         assert_eq!(named.line, Some(1));
 
         // Default import: greet from './hello.js'
-        let def = ir.imports.iter().find(|i| i.import_name == "greet").expect("greet import");
+        let def = ir
+            .imports
+            .iter()
+            .find(|i| i.import_name == "greet")
+            .expect("greet import");
         assert_eq!(def.kind, ImportKind::Default);
         assert_eq!(def.target_module, "./hello.js");
         assert_eq!(def.line, Some(2));
@@ -835,7 +933,11 @@ console.log("done");
         let src = b"function foo() { bar(); } function bar() {}";
         let ir = parse_js(src, "resolve.js");
 
-        let bar_call = ir.calls.iter().find(|c| c.callee_name == "bar").expect("bar call");
+        let bar_call = ir
+            .calls
+            .iter()
+            .find(|c| c.callee_name == "bar")
+            .expect("bar call");
         assert_eq!(bar_call.callee_local_key.as_deref(), Some("bar"));
         assert!(!bar_call.callee_external);
     }
@@ -863,7 +965,11 @@ console.log("done");
         let src = b"function init() { const fs = require('fs'); }";
         let ir = parse_js(src, "require.js");
         // require() is a call_expression, not import_statement. It should appear as a call.
-        let req_call = ir.calls.iter().find(|c| c.callee_name == "require").expect("require call");
+        let req_call = ir
+            .calls
+            .iter()
+            .find(|c| c.callee_name == "require")
+            .expect("require call");
         assert_eq!(req_call.line, 1);
         // Not tracked as import.
         assert!(ir.imports.is_empty());
@@ -873,7 +979,11 @@ console.log("done");
     fn test_namespace_import() {
         let src = br#"import * as utils from './utils.js';"#;
         let ir = parse_js(src, "ns.js");
-        let imp = ir.imports.iter().find(|i| i.import_name == "utils").expect("namespace import");
+        let imp = ir
+            .imports
+            .iter()
+            .find(|i| i.import_name == "utils")
+            .expect("namespace import");
         assert_eq!(imp.kind, ImportKind::Star);
         assert_eq!(imp.target_module, "./utils.js");
     }
@@ -881,8 +991,15 @@ console.log("done");
     #[test]
     fn test_jsdoc_extracted() {
         let ir = parse_js(SIMPLE_JS.as_bytes(), "fixtures/javascript/simple.js");
-        let calc = ir.symbols.iter().find(|s| s.name == "Calculator").expect("Calculator");
-        assert!(calc.docstring.as_ref().map_or(false, |d| d.contains("simple calculator")));
+        let calc = ir
+            .symbols
+            .iter()
+            .find(|s| s.name == "Calculator")
+            .expect("Calculator");
+        assert!(calc
+            .docstring
+            .as_ref()
+            .map_or(false, |d| d.contains("simple calculator")));
     }
 
     #[test]
@@ -895,14 +1012,25 @@ console.log("done");
     #[test]
     fn test_function_signature_includes_name() {
         let ir = parse_js(SIMPLE_JS.as_bytes(), "fixtures/javascript/simple.js");
-        let multiply = ir.symbols.iter().find(|s| s.name == "multiply").expect("multiply");
-        assert!(multiply.signature.as_ref().map_or(false, |s| s.contains("function multiply")));
+        let multiply = ir
+            .symbols
+            .iter()
+            .find(|s| s.name == "multiply")
+            .expect("multiply");
+        assert!(multiply
+            .signature
+            .as_ref()
+            .map_or(false, |s| s.contains("function multiply")));
     }
 
     #[test]
     fn test_method_inside_class_qualified() {
         let ir = parse_js(SIMPLE_JS.as_bytes(), "fixtures/javascript/simple.js");
-        let add_method = ir.symbols.iter().find(|s| s.qualified_name == "Calculator::add").expect("Calculator::add");
+        let add_method = ir
+            .symbols
+            .iter()
+            .find(|s| s.qualified_name == "Calculator::add")
+            .expect("Calculator::add");
         assert_eq!(add_method.kind, SymbolKind::Method);
         assert_eq!(add_method.name, "add");
     }
@@ -931,7 +1059,6 @@ console.log("done");
             "Golden IR mismatch for JavaScript"
         );
     }
-
 
     #[test]
     fn is_test_flag_detects_test_filenames() {

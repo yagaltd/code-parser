@@ -1,5 +1,4 @@
 /// Language extractor trait — implemented by each language.
-
 use code_parser_ir::FileParseIR;
 use tree_sitter::Tree;
 

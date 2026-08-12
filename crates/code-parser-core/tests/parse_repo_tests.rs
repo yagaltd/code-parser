@@ -7,7 +7,8 @@ use std::path::PathBuf;
 use code_parser_core::{language::Language, parse_repo};
 
 fn tmp_dir(label: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("code-parser-test-{}-{}", std::process::id(), label));
+    let dir =
+        std::env::temp_dir().join(format!("code-parser-test-{}-{}", std::process::id(), label));
     // Remove any prior leftover.
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
@@ -60,14 +61,22 @@ fn parse_repo_handles_broken_files_gracefully() {
 #[test]
 fn parse_repo_cross_file_resolve_between_siblings() {
     let dir = tmp_dir("cross-file");
-    write_file(&dir, "lib.rs", r#"
+    write_file(
+        &dir,
+        "lib.rs",
+        r#"
 pub fn helper() -> u32 { 42 }
-"#);
-    write_file(&dir, "main.rs", r#"
+"#,
+    );
+    write_file(
+        &dir,
+        "main.rs",
+        r#"
 fn main() {
     crate::helper();
 }
-"#);
+"#,
+    );
 
     let results = parse_repo(&dir, Some(vec![Language::Rust])).unwrap();
     assert_eq!(results.len(), 2);
@@ -76,10 +85,16 @@ fn main() {
     // V1 exact match: "crate::helper" != "helper" (the qualified name in lib.rs).
     // So it won't resolve — callee_external set to true.
     let main_ir = results.iter().find(|r| r.ir.path == "main.rs").unwrap();
-    let call = main_ir.ir.calls.iter()
+    let call = main_ir
+        .ir
+        .calls
+        .iter()
         .find(|c| c.callee_name == "crate::helper")
         .expect("call to crate::helper");
-    assert!(call.callee_external, "crate::helper not found → external (V1 exact match)");
+    assert!(
+        call.callee_external,
+        "crate::helper not found → external (V1 exact match)"
+    );
     assert!(call.callee_file.is_none());
 
     cleanup(&dir);
@@ -97,8 +112,14 @@ fn parse_repo_respects_gitignore() {
     let results = parse_repo(&dir, Some(vec![Language::Rust])).unwrap();
 
     let paths: Vec<&str> = results.iter().map(|r| r.ir.path.as_str()).collect();
-    assert!(paths.contains(&"src.rs"), "should contain src.rs, got {paths:?}");
-    assert!(!paths.contains(&"generated/gen.rs"), "generated/ should be ignored");
+    assert!(
+        paths.contains(&"src.rs"),
+        "should contain src.rs, got {paths:?}"
+    );
+    assert!(
+        !paths.contains(&"generated/gen.rs"),
+        "generated/ should be ignored"
+    );
 
     cleanup(&dir);
 }
