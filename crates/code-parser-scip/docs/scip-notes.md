@@ -32,6 +32,14 @@ $ ls -la index.scip                       # 755 KB (code-parser workspace) / 11 
 
 No custom build from source was needed; no nightly toolchain involvement.
 
+**Toolchain-pinning gotcha (observed 2026-08-18):** the `rust-analyzer` on
+PATH is a rustup shim that resolves the toolchain from the **CWD context**
+(`rust-toolchain.toml` / `RUSTUP_TOOLCHAIN`). Repos pinning an older
+toolchain (CognitiveOS pins `1.91.0`) get `Unknown binary 'rust-analyzer' in
+official toolchain '1.91.0-…'` even after `rustup component add rust-analyzer`
+for the default toolchain — install the component for the pinned toolchain
+too: `rustup component add rust-analyzer --toolchain 1.91.0-x86_64-unknown-linux-gnu`.
+
 ## 2. Runtime
 
 | Workspace | Elapsed | Max RSS | Output |
