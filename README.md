@@ -72,6 +72,12 @@ One JSON object per file. Cards are required fields built after extract+resolve:
 
 Invariant: `symbol_cards.len() == symbols.len()`.
 
+`diagnostics` is populated on broken input (never dead code): each maximal
+tree-sitter ERROR region yields one `Error` diagnostic with its line and byte
+span; `missing` markers yield `Warning` diagnostics. Bounded at 64 entries
+per file — further parse issues collapse into one overflow `Warning`
+(`MAX_DIAGNOSTICS_PER_FILE` in `extractors/utils.rs`).
+
 `SymbolIR.is_test` (v3, serde-default false) marks test code so consumers can
 answer "which tests cover this symbol" (TESTED_BY mirrors, CognitiveOS
 `domain_code` idea 2). Detection per language:

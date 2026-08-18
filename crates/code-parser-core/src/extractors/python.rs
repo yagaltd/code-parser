@@ -28,6 +28,9 @@ impl LanguageExtractor for PythonExtractor {
         // In-file resolve.
         resolve_in_file(&mut ctx);
 
+        // Diagnostics: top-level ERROR regions + missing markers (bounded).
+        ctx.diagnostics = utils::collect_error_diagnostics(tree, source);
+
         FileParseIR {
             ir_version: 3,
             path: file_path.to_string(),
@@ -582,6 +585,7 @@ fn is_test_file_path(path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use code_parser_ir::DiagnosticSeverity;
 
     fn parse_python(source: &[u8], path: &str) -> FileParseIR {
         let mut parser = tree_sitter::Parser::new();
@@ -814,5 +818,23 @@ def main():
 
         let file_ir = parse_python(b"def f():\n    pass\n", "tests/test_widget.py");
         assert!(file_ir.symbols[0].is_test, "test_*.py file must be test");
+    }
+
+    #[test]
+    fn broken_input_emits_diagnostics() {
+        let broken = b"def fine():\n    return 1\n\ndef broken():\n    x =\n";
+        let ir = parse_python(broken, "broken.py");
+        assert!(
+            !ir.diagnostics.is_empty(),
+            "broken Python must emit diagnostics"
+        );
+        assert!(
+            ir.diagnostics
+                .iter()
+                .any(|d| d.severity == DiagnosticSeverity::Error),
+            "expected an Error diagnostic: {:?}",
+            ir.diagnostics
+        );
+        assert!(ir.symbols.iter().any(|s| s.name == "fine"));
     }
 }

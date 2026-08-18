@@ -28,6 +28,9 @@ impl LanguageExtractor for JavaScriptExtractor {
         // In-file resolve: map same-file calls to local_keys.
         resolve_in_file(&mut ctx);
 
+        // Diagnostics: top-level ERROR regions + missing markers (bounded).
+        ctx.diagnostics = utils::collect_error_diagnostics(tree, source);
+
         FileParseIR {
             ir_version: 3,
             path: file_path.to_string(),
@@ -778,6 +781,7 @@ fn is_test_file_path(path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use code_parser_ir::DiagnosticSeverity;
 
     fn parse_js(source: &[u8], path: &str) -> FileParseIR {
         let mut parser = tree_sitter::Parser::new();
@@ -1069,5 +1073,20 @@ console.log("done");
         assert!(test_file.symbols[0].is_test, ".test.js file must be test");
         let tests_dir = parse_js(src.as_bytes(), "src/__tests__/math.js");
         assert!(tests_dir.symbols[0].is_test, "__tests__ dir must be test");
+    }
+
+    #[test]
+    fn broken_input_emits_diagnostics() {
+        let broken = b"export function fine() { return 1; }\nexport function broken( {\n  const x = ;\n}\n";
+        let ir = parse_js(broken, "broken.js");
+        assert!(!ir.diagnostics.is_empty(), "broken JS must emit diagnostics");
+        assert!(
+            ir.diagnostics
+                .iter()
+                .any(|d| d.severity == DiagnosticSeverity::Error),
+            "expected an Error diagnostic: {:?}",
+            ir.diagnostics
+        );
+        assert!(ir.symbols.iter().any(|s| s.name == "fine"));
     }
 }

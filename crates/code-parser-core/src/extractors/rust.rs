@@ -28,6 +28,9 @@ impl LanguageExtractor for RustExtractor {
         // In-file resolve: map same-file calls to local_keys.
         resolve_in_file(&mut ctx);
 
+        // Diagnostics: top-level ERROR regions + missing markers (bounded).
+        ctx.diagnostics = utils::collect_error_diagnostics(tree, source);
+
         FileParseIR {
             ir_version: 3,
             path: file_path.to_string(),
@@ -727,6 +730,7 @@ fn is_test_file_path(path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use code_parser_ir::DiagnosticSeverity;
     use code_parser_ir::SymbolKind as SK;
 
     fn parse_rust(source: &[u8], path: &str) -> FileParseIR {
@@ -1019,10 +1023,68 @@ fn foo() -> usize {
             ir.symbols.iter().any(|s| s.name == "fine"),
             "partial parse should extract fine"
         );
-        // Should have diagnostics for the error.
+        // Diagnostics must be non-empty (previously dead code — never filled).
         assert!(
-            !ir.diagnostics.is_empty() || ir.symbols.iter().any(|s| s.name == "broken"),
-            "expected diagnostics or partial extraction"
+            !ir.diagnostics.is_empty(),
+            "broken file must emit diagnostics"
+        );
+        let err = ir
+            .diagnostics
+            .iter()
+            .find(|d| d.severity == DiagnosticSeverity::Error)
+            .unwrap_or_else(|| panic!("expected an Error diagnostic, got {:?}", ir.diagnostics));
+        // The `let x =` region is the first maximal ERROR region (line 2).
+        assert_eq!(err.line, Some(2), "Error diagnostic must carry the right line");
+        assert!(
+            err.byte_span.is_some(),
+            "Error diagnostic must carry a byte span"
+        );
+        let (s, e) = err.byte_span.unwrap();
+        assert!(s < e, "byte span must be non-empty");
+    }
+
+    #[test]
+    fn clean_sources_produce_zero_diagnostics() {
+        let sources: [&[u8]; 3] = [
+            include_str!("../../../../fixtures/rust/simple.rs").as_bytes(),
+            MOD_A.as_bytes(),
+            MOD_B.as_bytes(),
+        ];
+        for src in sources {
+            let ir = parse_rust(src, "t.rs");
+            assert!(
+                ir.diagnostics.is_empty(),
+                "clean source must have zero diagnostics: {:?}",
+                ir.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn diagnostics_bounded_with_overflow_warning() {
+        // 100 broken function items → ≤ MAX_DIAGNOSTICS_PER_FILE entries,
+        // the last one being the overflow Warning.
+        let mut src = String::new();
+        for _ in 0..100 {
+            src.push_str("fn broken() {\n    let x = ;\n}\n");
+        }
+        let ir = parse_rust(src.as_bytes(), "broken_many.rs");
+        assert!(
+            ir.diagnostics.len() <= utils::MAX_DIAGNOSTICS_PER_FILE,
+            "diagnostics must be bounded, got {}",
+            ir.diagnostics.len()
+        );
+        let last = ir.diagnostics.last().expect("at least one diagnostic");
+        assert_eq!(
+            last.severity,
+            DiagnosticSeverity::Warning,
+            "last diagnostic must be the overflow Warning: {:?}",
+            ir.diagnostics.last()
+        );
+        assert!(
+            last.message.contains("omitted"),
+            "overflow Warning must mention the count: {}",
+            last.message
         );
     }
 

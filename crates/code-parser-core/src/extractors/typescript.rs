@@ -48,6 +48,9 @@ impl LanguageExtractor for TypeScriptExtractor {
 
         resolve_in_file(&mut ctx);
 
+        // Diagnostics: top-level ERROR regions + missing markers (bounded).
+        ctx.diagnostics = utils::collect_error_diagnostics(tree, source);
+
         FileParseIR {
             ir_version: 3,
             path: file_path.to_string(),
@@ -858,6 +861,7 @@ fn is_test_file_path(path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use code_parser_ir::DiagnosticSeverity;
     use code_parser_ir::SymbolKind as SK;
 
     fn parse_ts(source: &[u8], path: &str) -> FileParseIR {
@@ -1034,5 +1038,20 @@ const double = (x: number): number => x * 2;
         assert!(test_file.symbols[0].is_test, ".test.ts file must be test");
         let spec_file = parse_ts(src.as_bytes(), "src/math.spec.ts");
         assert!(spec_file.symbols[0].is_test, ".spec.ts file must be test");
+    }
+
+    #[test]
+    fn broken_input_emits_diagnostics() {
+        let broken = b"export function fine() { return 1; }\nexport function broken( {\n  const x = ;\n}\n";
+        let ir = parse_ts(broken, "broken.ts");
+        assert!(!ir.diagnostics.is_empty(), "broken TS must emit diagnostics");
+        assert!(
+            ir.diagnostics
+                .iter()
+                .any(|d| d.severity == DiagnosticSeverity::Error),
+            "expected an Error diagnostic: {:?}",
+            ir.diagnostics
+        );
+        assert!(ir.symbols.iter().any(|s| s.name == "fine"));
     }
 }
