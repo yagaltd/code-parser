@@ -540,6 +540,42 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 column: Some(utils::point_column(node)),
             });
         }
+        "use_wildcard" => {
+            // use a::b::*; — the module path is the optional _path child.
+            let path = utils::child_by_kind(&arg, "scoped_identifier")
+                .or_else(|| utils::child_by_kind(&arg, "identifier"));
+            let target_module = path
+                .map(|p| utils::node_text(&p, source).to_string())
+                .unwrap_or_default();
+            imports.push(ImportIR {
+                import_name: "*".to_string(),
+                target_module,
+                kind: ImportKind::Star,
+                line,
+                column: Some(utils::point_column(node)),
+            });
+        }
+        "use_as_clause" => {
+            // use a::b as c; — alias replaces import_name, target_module
+            // keeps the FULL original path (a::b).
+            let path = arg.child_by_field_name("path");
+            let alias = arg.child_by_field_name("alias");
+            let target_module = path
+                .as_ref()
+                .map(|p| utils::node_text(p, source).to_string())
+                .unwrap_or_default();
+            let name = alias
+                .as_ref()
+                .map(|a| utils::node_text(a, source).to_string())
+                .unwrap_or_default();
+            imports.push(ImportIR {
+                import_name: name,
+                target_module,
+                kind: ImportKind::Named,
+                line,
+                column: Some(utils::point_column(node)),
+            });
+        }
         "scoped_identifier" => {
             // use std::collections::HashMap;
             let text = utils::node_text(&arg, source);
@@ -595,6 +631,33 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                                 column: Some(utils::point_column(node)),
                             });
                         }
+                        "use_as_clause" => {
+                            // use a::{b as c, d}; — per item: alias replaces
+                            // import_name, target_module keeps the full
+                            // original path (a::b).
+                            let value = child.child_by_field_name("path");
+                            let alias = child.child_by_field_name("alias");
+                            let value_name = value
+                                .as_ref()
+                                .map(|v| utils::node_text(v, source).to_string())
+                                .unwrap_or_default();
+                            let full_module = if prefix.is_empty() {
+                                value_name.clone()
+                            } else {
+                                format!("{prefix}::{value_name}")
+                            };
+                            let name = alias
+                                .as_ref()
+                                .map(|a| utils::node_text(a, source).to_string())
+                                .unwrap_or_default();
+                            imports.push(ImportIR {
+                                import_name: name,
+                                target_module: full_module,
+                                kind: ImportKind::Named,
+                                line,
+                                column: Some(utils::point_column(node)),
+                            });
+                        }
                         _ => {}
                     }
                 }
@@ -604,15 +667,37 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
             // use {Foo, Bar}; (legacy)
             let mut cursor = arg.walk();
             for child in arg.named_children(&mut cursor) {
-                if child.kind() == "identifier" {
-                    let name = utils::node_text(&child, source).to_string();
-                    imports.push(ImportIR {
-                        import_name: name,
-                        target_module: String::new(),
-                        kind: ImportKind::Named,
-                        line,
-                        column: Some(utils::point_column(node)),
-                    });
+                match child.kind() {
+                    "identifier" => {
+                        let name = utils::node_text(&child, source).to_string();
+                        imports.push(ImportIR {
+                            import_name: name,
+                            target_module: String::new(),
+                            kind: ImportKind::Named,
+                            line,
+                            column: Some(utils::point_column(node)),
+                        });
+                    }
+                    "use_as_clause" => {
+                        let value = child.child_by_field_name("path");
+                        let alias = child.child_by_field_name("alias");
+                        let target_module = value
+                            .as_ref()
+                            .map(|v| utils::node_text(v, source).to_string())
+                            .unwrap_or_default();
+                        let name = alias
+                            .as_ref()
+                            .map(|a| utils::node_text(a, source).to_string())
+                            .unwrap_or_default();
+                        imports.push(ImportIR {
+                            import_name: name,
+                            target_module,
+                            kind: ImportKind::Named,
+                            line,
+                            column: Some(utils::point_column(node)),
+                        });
+                    }
+                    _ => {}
                 }
             }
         }
@@ -905,6 +990,59 @@ fn foo() -> usize {
         assert_eq!(imp.target_module, "std::collections");
         assert_eq!(imp.kind, ImportKind::Named);
         assert_eq!(imp.line, Some(1));
+    }
+
+    // ── use globs + renames (fix C) ──────────────────────────────────
+
+    #[test]
+    fn use_globs_and_renames() {
+        let src = r#"
+use std::collections::*;
+use std::io::Result as IoResult;
+use a::{b, c as d, e};
+"#;
+        let ir = parse_rust(src.as_bytes(), "uses.rs");
+
+        // Glob: one Star import with the module path.
+        let star = ir
+            .imports
+            .iter()
+            .find(|i| i.kind == ImportKind::Star)
+            .expect("star import");
+        assert_eq!(star.import_name, "*");
+        assert_eq!(star.target_module, "std::collections");
+        assert_eq!(star.line, Some(2));
+
+        // Rename: alias replaces import_name, target_module keeps the full
+        // original path.
+        let io = ir
+            .imports
+            .iter()
+            .find(|i| i.import_name == "IoResult")
+            .expect("IoResult import");
+        assert_eq!(io.target_module, "std::io::Result");
+        assert_eq!(io.kind, ImportKind::Named);
+        assert_eq!(io.line, Some(3));
+
+        // Mixed list: 3 Named imports — names b/d/e, kinds all Named,
+        // target_module = prefix + full original item path.
+        let list_names: Vec<&str> = ir
+            .imports
+            .iter()
+            .filter(|i| i.line == Some(4))
+            .map(|i| i.import_name.as_str())
+            .collect();
+        assert_eq!(list_names, ["b", "d", "e"]);
+        for imp in ir.imports.iter().filter(|i| i.line == Some(4)) {
+            assert_eq!(imp.kind, ImportKind::Named);
+            assert!(imp.target_module.starts_with("a::"), "{}", imp.target_module);
+        }
+        let b = ir.imports.iter().find(|i| i.import_name == "b").unwrap();
+        assert_eq!(b.target_module, "a::b");
+        let d = ir.imports.iter().find(|i| i.import_name == "d").unwrap();
+        assert_eq!(d.target_module, "a::c");
+        let e = ir.imports.iter().find(|i| i.import_name == "e").unwrap();
+        assert_eq!(e.target_module, "a::e");
     }
 
     #[test]
