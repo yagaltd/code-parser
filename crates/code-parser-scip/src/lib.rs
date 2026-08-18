@@ -43,7 +43,12 @@ use scip::types::Index;
 use serde::{Deserialize, Serialize};
 
 /// Version of the `ScipCallBindings` artifact shape. Bump on breaking change.
-pub const SCIP_BINDINGS_VERSION: u32 = 1;
+///
+/// v1 → v2: `ScipCallBinding.impl_candidates` added (trait-dispatch impl
+/// candidate list, recovered from the index by descriptor pattern). Old
+/// cached artifacts without the field still parse (`#[serde(default)]`), but
+/// the version bump invalidates them so consumers get fresh candidates.
+pub const SCIP_BINDINGS_VERSION: u32 = 2;
 
 /// Byte cap for captured subprocess output (agent-spec kit discipline:
 /// bounded output, no unbounded stderr buffering on failure paths).
@@ -73,6 +78,25 @@ pub struct ScipCallBinding {
     /// `"trait"` when the call site resolved to a trait method symbol
     /// (`dyn Trait` / generic receiver — dispatch is genuinely ambiguous).
     pub dispatch: Option<String>,
+    /// For `dispatch == "trait"`: the concrete impl methods of that trait
+    /// method (recovered from the index by descriptor pattern — SCIP
+    /// relationships are empty in rust-analyzer output), as definition
+    /// positions. Consumers turn these into ranked Ambiguous candidates.
+    /// Empty for `"static"` bindings.
+    #[serde(default)]
+    pub impl_candidates: Vec<ScipImplCandidate>,
+}
+
+/// Definition position of one impl of a trait method.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScipImplCandidate {
+    /// Definition file, repo-relative.
+    pub file: String,
+    /// 1-indexed definition line.
+    pub line: u32,
+    /// Name projected onto the tree-sitter qualified-name grammar
+    /// (`English::greet`) — diagnostics only.
+    pub qualified_name: String,
 }
 
 impl ScipCallBinding {
@@ -351,7 +375,10 @@ fn source_files(root: &Path) -> Vec<(String, Vec<u8>)> {
 ///   occurrence in the index: zero defs ⇒ external, several defs ⇒ ambiguous
 ///   definition position — both skipped rather than guessed;
 /// - trait-method references (`dyn Trait` / generic receivers) carry
-///   `dispatch: "trait"`; concrete ones `"static"`.
+///   `dispatch: "trait"` and an `impl_candidates` list recovered from the
+///   index by descriptor pattern (rust-analyzer emits no SCIP relationships,
+///   so impls of a trait method are found as `impl#[Type][Trait]name`
+///   symbols); concrete ones `"static"` with an empty candidate list.
 fn parse_and_project(bytes: &[u8]) -> Result<(String, Vec<ScipCallBinding>)> {
     let index = Index::parse_from_bytes(bytes)
         .map_err(|e| anyhow!("cannot decode SCIP protobuf index: {e}"))?;
@@ -368,6 +395,13 @@ fn parse_and_project(bytes: &[u8]) -> Result<(String, Vec<ScipCallBinding>)> {
             kinds.insert(sym.symbol.as_str(), sym.kind.enum_value_or_default());
         }
     }
+
+    // Symbol descriptors, parsed once (for impl-type/trait/name recovery).
+    let infos: Vec<SymInfo<'_>> = kinds
+        .keys()
+        .map(|symbol| SymInfo::new(symbol, kinds[symbol]))
+        .collect();
+    let info_of: HashMap<&str, &SymInfo<'_>> = infos.iter().map(|i| (i.symbol, i)).collect();
 
     let mut defs: HashMap<&str, Vec<(String, u32, u32)>> = HashMap::new();
     for doc in &index.documents {
@@ -409,6 +443,40 @@ fn parse_and_project(bytes: &[u8]) -> Result<(String, Vec<ScipCallBinding>)> {
                 continue;
             }
             let (callee_file, line0, _col0) = &ds[0];
+            let is_trait = kind == Kind::TraitMethod;
+            let impl_candidates = if is_trait {
+                // Recover concrete impls of this trait method by descriptor
+                // pattern: `impl#[Type][Trait]name` matching trait + name.
+                // rust-analyzer emits no SCIP relationships, so the trait
+                // method's own descriptors carry the trait identity.
+                let own = info_of.get(occ.symbol.as_str());
+                let mut cands = Vec::new();
+                for info in &infos {
+                    if info.kind != Kind::Method
+                        || info.trait_name.as_deref() != own.and_then(|o| o.trait_name.as_deref())
+                        || info.name != own.map_or("", |o| o.name.as_str())
+                    {
+                        continue;
+                    }
+                    let Some(ds) = defs.get(info.symbol) else {
+                        continue;
+                    };
+                    if ds.len() != 1 {
+                        continue;
+                    }
+                    let (file, line0, _) = &ds[0];
+                    cands.push(ScipImplCandidate {
+                        file: file.clone(),
+                        line: *line0 + 1,
+                        qualified_name: scip_symbol_to_qualified_name(info.symbol),
+                    });
+                }
+                cands.sort_by(|a, b| a.file.cmp(&b.file).then(a.line.cmp(&b.line)));
+                cands.dedup();
+                cands
+            } else {
+                Vec::new()
+            };
             bindings.push(ScipCallBinding {
                 file: doc.relative_path.clone(),
                 line: occ.range[0] as u32 + 1,
@@ -416,11 +484,12 @@ fn parse_and_project(bytes: &[u8]) -> Result<(String, Vec<ScipCallBinding>)> {
                 callee_file: callee_file.clone(),
                 callee_line: *line0 + 1,
                 callee_qualified_name: scip_symbol_to_qualified_name(&occ.symbol),
-                dispatch: Some(if kind == Kind::TraitMethod {
+                dispatch: Some(if is_trait {
                     "trait".to_string()
                 } else {
                     "static".to_string()
                 }),
+                impl_candidates,
             });
         }
     }
@@ -440,6 +509,72 @@ fn is_callable(kind: Kind) -> bool {
         kind,
         Kind::Method | Kind::StaticMethod | Kind::TraitMethod | Kind::Function | Kind::Macro
     )
+}
+
+/// Parsed descriptor identity of one index symbol, for impl-candidate
+/// recovery. rust-analyzer encodes (see `docs/scip-notes.md` §3d):
+/// - `impl#[Type]name` → `Type("impl")` marker + `TypeParameter(impl-type)`;
+/// - `impl#[Type][Trait]name` → marker + impl-type + trait;
+/// - `Trait#name` → `Type(trait)` + `Method(name)`.
+struct SymInfo<'a> {
+    symbol: &'a str,
+    kind: Kind,
+    name: String,
+    /// Trait identity for `impl#[X][Trait]name` and `Trait#name` symbols.
+    trait_name: Option<String>,
+}
+
+impl<'a> SymInfo<'a> {
+    fn new(symbol: &'a str, kind: Kind) -> SymInfo<'a> {
+        use scip::types::descriptor::Suffix;
+        let mut parts: Vec<(String, Suffix)> = Vec::new();
+        let mut trait_from_type_descriptor = None;
+        if let Ok(parsed) = scip::symbol::parse_symbol(symbol) {
+            for d in &parsed.descriptors {
+                let suffix = d.suffix.enum_value_or_default();
+                if suffix != Suffix::Namespace {
+                    parts.push((d.name.clone(), suffix));
+                }
+            }
+            // `Trait#name`: the Type descriptor itself is the trait — but
+            // only when there is no `impl` marker (inherent methods also
+            // carry Type descriptors in some indexers).
+            if !parts
+                .iter()
+                .any(|(n, s)| *s == Suffix::Type && *n == "impl")
+            {
+                trait_from_type_descriptor = parts
+                    .iter()
+                    .find(|(_, s)| *s == Suffix::Type)
+                    .map(|(n, _)| n.trim_matches('`').to_string());
+            }
+        }
+        let name = parts
+            .iter()
+            .rev()
+            .find(|(_, s)| matches!(s, Suffix::Method | Suffix::Term | Suffix::Macro))
+            .map(|(n, _)| n.clone())
+            .unwrap_or_default();
+        let trait_name = match parts
+            .iter()
+            .position(|(n, s)| *s == Suffix::Type && *n == "impl")
+        {
+            // `impl#[Type][Trait]name`: the second TypeParameter after the
+            // marker is the implemented trait.
+            Some(i) => parts[i + 1..]
+                .iter()
+                .filter(|(_, s)| *s == Suffix::TypeParameter)
+                .nth(1)
+                .map(|(n, _)| n.trim_matches('`').to_string()),
+            None => trait_from_type_descriptor,
+        };
+        SymInfo {
+            symbol,
+            kind,
+            name,
+            trait_name,
+        }
+    }
 }
 
 /// Project a SCIP symbol's descriptor onto the tree-sitter qualified-name
@@ -691,6 +826,65 @@ mod tests {
             ),
             "Vec<T>::new"
         );
+    }
+
+    #[test]
+    fn trait_dispatch_bindings_carry_impl_candidates() {
+        let bindings = from_scip_artifact(&artifact_path(), &fixture_root())
+            .unwrap()
+            .bindings;
+        // dyn + generic greet call sites: same trait method, both impls listed
+        // as definition positions, sorted by (file, line).
+        for (line, col) in [(37u32, 6u32), (41u32, 6u32)] {
+            let t = binding(&bindings, "src/lib.rs", line, col);
+            assert_eq!(t.dispatch.as_deref(), Some("trait"));
+            assert_eq!(
+                t.impl_candidates,
+                vec![
+                    ScipImplCandidate {
+                        file: "src/lib.rs".to_string(),
+                        line: 10,
+                        qualified_name: "English::greet".to_string(),
+                    },
+                    ScipImplCandidate {
+                        file: "src/lib.rs".to_string(),
+                        line: 17,
+                        qualified_name: "German::greet".to_string(),
+                    },
+                ]
+            );
+        }
+        // static bindings carry no candidates
+        let s = binding(&bindings, "src/lib.rs", 46, 16);
+        assert!(s.impl_candidates.is_empty());
+        let d = binding(&bindings, "src/b.rs", 5, 6);
+        assert!(d.impl_candidates.is_empty());
+    }
+
+    #[test]
+    fn artifact_json_roundtrip_defaults_missing_candidates() {
+        let b = from_scip_artifact(&artifact_path(), &fixture_root()).unwrap();
+        let json = serde_json::to_string(&b).unwrap();
+        let back: ScipCallBindings = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, b, "full roundtrip must preserve candidates");
+
+        // v1-shaped JSON (no impl_candidates field) still parses → empty.
+        let v1 = r#"{
+            "version": 1,
+            "tool": "rust-analyzer 1.95.0",
+            "cargo_fingerprint": "abc",
+            "bindings": [{
+                "file": "src/lib.rs",
+                "line": 37,
+                "column": 6,
+                "callee_file": "src/lib.rs",
+                "callee_line": 5,
+                "callee_qualified_name": "Greeter::greet",
+                "dispatch": "trait"
+            }]
+        }"#;
+        let old: ScipCallBindings = serde_json::from_str(v1).unwrap();
+        assert_eq!(old.bindings[0].impl_candidates, vec![]);
     }
 
     // ── fingerprint (unit: equality is the cache contract) ──────────────

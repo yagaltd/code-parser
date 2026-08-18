@@ -105,7 +105,10 @@ each `impl Trait for Type` method is its own symbol
 `impl#[German][Greeter]greet().` at `src/lib.rs:16`). With relationships
 empty, candidate sets for a trait dispatch site are built by matching the
 `[Trait]` slot of impl-method symbols against the referenced trait — a
-descriptor-pattern lookup, not a guess.
+descriptor-pattern lookup, not a guess. **Artifact consequence (v2):** each
+`dispatch: "trait"` binding carries `impl_candidates` — the definition
+positions of those impls, recovered exactly this way — so consumers get a
+real, ranked Ambiguous candidate set instead of a guess.
 
 ### 3d. SCIP symbol grammar notes (RA 1.95)
 
