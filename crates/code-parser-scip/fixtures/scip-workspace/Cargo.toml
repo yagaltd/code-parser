@@ -1,0 +1,11 @@
+[package]
+name = "scip_fixture"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+# Standalone workspace: opt out of the enclosing code-parser workspace so
+# `cargo metadata` / `rust-analyzer scip` run against this fixture alone.
+[workspace]

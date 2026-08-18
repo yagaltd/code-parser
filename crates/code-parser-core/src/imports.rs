@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 use std::path::{Component, Path};
 
-use code_parser_ir::{FileParseIR, ImportIR};
+use code_parser_ir::FileParseIR;
 
 /// `tsconfig.json` compiler options that matter for import resolution.
 #[derive(Debug, Clone, Default)]

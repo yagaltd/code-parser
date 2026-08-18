@@ -8,6 +8,7 @@ Parser always emits cards. Cos / domain chooses whether to store, lex, embed, or
 
 - `crates/code-parser-ir` — IR types + serde + card builders (zero heavy deps)
 - `crates/code-parser-core` — tree-sitter engine: parse, extract, resolve, cards, watch, hash cache
+- `crates/code-parser-scip` — SCIP overlay producer: `rust-analyzer scip` out-of-process → resolved call bindings (cache by cargo fingerprint; committed fixture artifacts)
 - `crates/code-parser-cli` — thin CLI (`parse`, `parse-repo`, `watch`, `check`)
 
 ## Supported languages

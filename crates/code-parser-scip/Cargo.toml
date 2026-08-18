@@ -1,0 +1,17 @@
+[package]
+name = "code-parser-scip"
+version = "0.1.0"
+edition = "2021"
+description = "SCIP overlay producer — rust-analyzer scip out-of-process → resolved call bindings"
+
+[dependencies]
+scip = "0.9"
+protobuf = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+blake3 = "1"
+anyhow = "1"
+code-parser-ir = { path = "../code-parser-ir" }
+
+[dev-dependencies]
+code-parser-core = { path = "../code-parser-core", features = ["rust"] }
