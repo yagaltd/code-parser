@@ -282,6 +282,7 @@ impl<'a> ExtractCtx<'a> {
                         kind: ImportKind::Named,
                         line: Some(line),
                         column: Some(utils::point_column(node)),
+            resolved: None,
                     });
                 }
                 "aliased_import" => {
@@ -296,6 +297,7 @@ impl<'a> ExtractCtx<'a> {
                         kind: ImportKind::Named,
                         line: Some(line),
                         column: Some(utils::point_column(node)),
+            resolved: None,
                     });
                 }
                 _ => {}
@@ -321,6 +323,7 @@ impl<'a> ExtractCtx<'a> {
                 kind: ImportKind::Star,
                 line: Some(line),
                 column: Some(utils::point_column(node)),
+            resolved: None,
             });
             return;
         }
@@ -344,6 +347,7 @@ impl<'a> ExtractCtx<'a> {
                             kind: ImportKind::Named,
                             line: Some(line),
                             column: Some(utils::point_column(node)),
+            resolved: None,
                         });
                     }
                 }
@@ -359,6 +363,7 @@ impl<'a> ExtractCtx<'a> {
                         kind: ImportKind::Named,
                         line: Some(line),
                         column: Some(utils::point_column(node)),
+            resolved: None,
                     });
                 }
                 _ => {}

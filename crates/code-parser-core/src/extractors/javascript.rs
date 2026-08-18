@@ -509,6 +509,7 @@ impl<'a> ExtractCtx<'a> {
                             kind: ImportKind::Named,
                             line,
                             column: Some(utils::point_column(node)),
+            resolved: None,
                         });
                     }
                 }
@@ -524,6 +525,7 @@ impl<'a> ExtractCtx<'a> {
                         kind: ImportKind::Star,
                         line,
                         column: Some(utils::point_column(node)),
+            resolved: None,
                     });
                 }
 
@@ -538,6 +540,7 @@ impl<'a> ExtractCtx<'a> {
                             kind: ImportKind::Default,
                             line,
                             column: Some(utils::point_column(node)),
+            resolved: None,
                         });
                     }
                 } else if let Some(id) = utils::child_by_kind(c, "identifier") {
@@ -549,6 +552,7 @@ impl<'a> ExtractCtx<'a> {
                         kind: ImportKind::Default,
                         line,
                         column: Some(utils::point_column(node)),
+            resolved: None,
                     });
                 } else {
                     // Fallback: use import_clause source text.
@@ -560,6 +564,7 @@ impl<'a> ExtractCtx<'a> {
                             kind: ImportKind::Default,
                             line,
                             column: Some(utils::point_column(node)),
+            resolved: None,
                         });
                     }
                 }

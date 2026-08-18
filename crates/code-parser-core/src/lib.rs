@@ -13,6 +13,7 @@ pub mod cache;
 pub mod extractors;
 pub mod file_collect;
 pub mod hash;
+pub mod imports;
 pub mod language;
 pub mod metrics;
 pub mod parser;
@@ -102,6 +103,9 @@ pub fn parse_repo(
     // Cross-file resolve pass.
     let mut irs: Vec<FileParseIR> = results.iter().map(|r| r.ir.clone()).collect();
     resolve::resolve_cross_file(&mut irs);
+    // TS/JS import specifier resolution (fix D): fills ImportIR.resolved for
+    // relative paths / tsconfig aliases that map to real repo files.
+    imports::resolve_import_paths(&mut irs, &full_root);
     for (i, ir) in irs.into_iter().enumerate() {
         // Rebuild cards after resolve so they reflect resolved calls.
         let (file_card, symbol_cards) = code_parser_ir::build_all_cards(&ir, &Default::default());

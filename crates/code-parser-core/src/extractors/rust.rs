@@ -557,6 +557,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                     kind: ImportKind::Named,
                     line,
                     column: Some(utils::point_column(node)),
+            resolved: None,
                 });
             }
             return;
@@ -573,6 +574,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 kind: ImportKind::Named,
                 line,
                 column: Some(utils::point_column(node)),
+            resolved: None,
             });
         }
         "use_wildcard" => {
@@ -588,6 +590,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 kind: ImportKind::Star,
                 line,
                 column: Some(utils::point_column(node)),
+            resolved: None,
             });
         }
         "use_as_clause" => {
@@ -609,6 +612,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 kind: ImportKind::Named,
                 line,
                 column: Some(utils::point_column(node)),
+            resolved: None,
             });
         }
         "scoped_identifier" => {
@@ -621,6 +625,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 kind: ImportKind::Named,
                 line,
                 column: Some(utils::point_column(node)),
+            resolved: None,
             });
         }
         "scoped_use_list" => {
@@ -648,6 +653,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                                 kind: ImportKind::Named,
                                 line,
                                 column: Some(utils::point_column(node)),
+                                resolved: None,
                             });
                         }
                         "scoped_identifier" => {
@@ -664,6 +670,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                                 kind: ImportKind::Named,
                                 line,
                                 column: Some(utils::point_column(node)),
+            resolved: None,
                             });
                         }
                         "use_as_clause" => {
@@ -691,6 +698,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                                 kind: ImportKind::Named,
                                 line,
                                 column: Some(utils::point_column(node)),
+            resolved: None,
                             });
                         }
                         _ => {}
@@ -711,6 +719,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                             kind: ImportKind::Named,
                             line,
                             column: Some(utils::point_column(node)),
+            resolved: None,
                         });
                     }
                     "use_as_clause" => {
@@ -730,6 +739,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                             kind: ImportKind::Named,
                             line,
                             column: Some(utils::point_column(node)),
+            resolved: None,
                         });
                     }
                     _ => {}
@@ -745,6 +755,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 kind: ImportKind::Named,
                 line,
                 column: Some(utils::point_column(node)),
+            resolved: None,
             });
         }
     }

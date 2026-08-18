@@ -619,6 +619,7 @@ impl<'a> ExtractCtx<'a> {
                     kind: ImportKind::Default,
                     line,
                     column: Some(utils::point_column(node)),
+            resolved: None,
                 });
             }
         }
@@ -636,6 +637,7 @@ impl<'a> ExtractCtx<'a> {
                             kind: ImportKind::Named,
                             line,
                             column: Some(utils::point_column(node)),
+            resolved: None,
                         });
                     }
                 }
@@ -652,6 +654,7 @@ impl<'a> ExtractCtx<'a> {
                     kind: ImportKind::Star,
                     line,
                     column: Some(utils::point_column(node)),
+            resolved: None,
                 });
             }
         }

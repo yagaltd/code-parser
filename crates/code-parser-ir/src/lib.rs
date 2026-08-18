@@ -250,6 +250,13 @@ pub struct ImportIR {
     pub kind: ImportKind,
     pub line: Option<u32>,
     pub column: Option<u32>,
+    /// Repo-relative target path when the specifier resolves to a real file
+    /// in the repo (relative paths, extension/index probing, tsconfig `paths`
+    /// aliases — fix D). `None` for external package specifiers and for
+    /// single-file parses (repo-level pass only). `target_module` is never
+    /// rewritten; this field carries the resolution alongside the raw text.
+    #[serde(default)]
+    pub resolved: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

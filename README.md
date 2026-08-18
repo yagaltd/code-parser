@@ -99,6 +99,15 @@ resolution is scope-aware (caller's module prefix first, then file root).
 Consumers that persist parsed output should re-ingest once after the bump
 (`domain_code` does this via the `CodeFilePayload.ir_version` guard).
 
+`ImportIR.resolved` (fix D, serde-default `None`): filled by the repo-level
+pass in `parse_repo` for TS/JS imports whose specifier maps to a real repo
+file — relative paths (`./` `../`) normalized against the importing file,
+extension probing (`.ts` `.tsx` `.js` `.jsx`, then `/index.*`), and
+`tsconfig.json` `baseUrl`/`paths` aliases (`~/*` etc.). `target_module` is
+never rewritten; package specifiers and single-file parses keep `None`.
+Resolution lives in `imports.rs` (`load_tsconfig` / `resolve_import` /
+`resolve_import_paths`).
+
 See `fixtures/*/simple.ir.json` and `schema/file_parse_ir.v2.json`. Legacy `schema/file_parse_ir.v1.json` remains for old dumps only.
 
 ## Retrieval cards
