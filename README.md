@@ -161,6 +161,15 @@ cargo test --features rust,typescript,javascript,python --all
 
 Golden fixtures in `fixtures/` are compared structurally on every test run. Volatile fields (byte offsets, columns, content hash) are excluded; cards are rebuilt with hash cleared so FILE `hash=` line is stable.
 
+## Hardening: per-file caps + size gate
+
+Hostile inputs are bounded, never silent (code-graph borrow 2):
+
+- `parse_file_bytes` truncates at `MAX_SYMBOLS_PER_FILE = 4096`, `MAX_CALLS_PER_FILE = 8192`, `MAX_IMPORTS_PER_FILE = 2048` and emits one Warning diagnostic per truncated kind (`truncated: {n} symbols (cap 4096)`). Normal files are untouched — parity is guarded by the golden fixtures.
+- `collect_source_files` skips files over `MAX_FILE_BYTES = 4 MiB`; `parse_repo` emits a diagnostic-only `FileParseIR::empty` with a Warning (`skipped: {bytes} > cap …`) per skipped file — never `Err`, never invisible.
+
+Caps and the size gate are covered by unit tests in `lib.rs` / `file_collect.rs` (synthetic 5k-fn file, 5 MB repo file, at-cap boundary).
+
 ## License
 
 MIT
