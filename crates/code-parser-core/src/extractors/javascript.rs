@@ -32,7 +32,7 @@ impl LanguageExtractor for JavaScriptExtractor {
         ctx.diagnostics = utils::collect_error_diagnostics(tree, source);
 
         FileParseIR {
-            ir_version: 3,
+            ir_version: 4,
             path: file_path.to_string(),
             language: Language::JavaScript.as_str().to_string(),
             content_hash,
@@ -793,7 +793,7 @@ mod tests {
         let mut ir = ir;
         ir.metrics =
             crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
-        ir.ir_version = 3;
+        ir.ir_version = 4;
         ir
     }
 

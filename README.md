@@ -43,13 +43,13 @@ cargo run --features watcher -- watch . --emit jsonl
 cargo run -- check src/main.rs
 ```
 
-## IR shape (`ir_version`: 3)
+## IR shape (`ir_version`: 4)
 
 One JSON object per file. Cards are required fields built after extract+resolve:
 
 ```json
 {
-  "ir_version": 3,
+  "ir_version": 4,
   "path": "src/main.rs",
   "language": "Rust",
   "content_hash": "<blake3>",
@@ -92,6 +92,13 @@ The parser is stateless: it never removes or versions anything — `is_test` is
 computed per snapshot; all state (mirrors, sweeps, parity) lives in
 `domain_code` on the store side.
 
+`ir_version` 4 (fix B): Rust symbol keys are module-qualified — `mod a { fn foo() }`
+emits `local_key: "a::foo"` (structs/enums/traits/impl-methods likewise, e.g.
+`a::S::m`), so same-file collisions between modules are impossible and in-file
+resolution is scope-aware (caller's module prefix first, then file root).
+Consumers that persist parsed output should re-ingest once after the bump
+(`domain_code` does this via the `CodeFilePayload.ir_version` guard).
+
 See `fixtures/*/simple.ir.json` and `schema/file_parse_ir.v2.json`. Legacy `schema/file_parse_ir.v1.json` remains for old dumps only.
 
 ## Retrieval cards
@@ -128,7 +135,10 @@ if let Some(result) = parse_file_cached(Path::new("src/main.rs"), &mut cache)? {
 
 ## Resolution
 
-- **In-file:** bare name → same-file symbol `local_key` (e.g. `bar()` → `bar`)
+- **In-file (scope-aware):** bare name → caller's module scope first (`b::foo`
+  for a call inside `mod b`), then file-root symbols (`bar()` → `bar`);
+  qualified names (`a::foo`) match exact qualified names. Misses stay
+  unresolved, never external.
 - **Cross-file:** qualified names with `::` → `callee_file` set to declaring file path
 - **External heuristic:** qualified name not found in repo → `callee_external: true`
 

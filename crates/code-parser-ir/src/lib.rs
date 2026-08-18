@@ -291,7 +291,7 @@ impl FileParseIR {
     /// Create a minimal IR for a file that failed to parse (diagnostics only).
     pub fn empty(path: impl Into<String>, language: impl Into<String>) -> Self {
         Self {
-            ir_version: 3,
+            ir_version: 4,
             path: path.into(),
             language: language.into(),
             content_hash: String::new(),

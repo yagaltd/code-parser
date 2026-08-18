@@ -10,6 +10,10 @@ use code_parser_ir::FileParseIR;
 /// - `content_hash` — zeroed (hash still tested in dedicated unit tests)
 /// - `start_byte` / `end_byte` — tree-sitter offsets
 /// - `column` — grammar-unstable
+/// - `ir_version` — pinned to the current canonical version (4): golden
+///   fixture JSONs keep the version they were written with (e.g. 3) and stay
+///   byte-identical across IR version bumps; the extractor's emitted version
+///   is asserted separately by the version-bump tests.
 ///
 /// Retrieval cards **are** compared. After zeroing `content_hash`, cards are
 /// rebuilt so the FILE line `hash=` token matches on both actual and golden
@@ -20,6 +24,7 @@ use code_parser_ir::FileParseIR;
 /// - `retrieval_card` / `symbol_cards` text (hash-stripped rebuild)
 pub fn normalize_for_compare(ir: &mut FileParseIR) {
     ir.content_hash = String::new();
+    ir.ir_version = 4;
     for sym in &mut ir.symbols {
         sym.start_byte = None;
         sym.end_byte = None;
@@ -41,9 +46,9 @@ pub fn normalize_for_compare(ir: &mut FileParseIR) {
 /// Prefer calling **after** [`normalize_for_compare`] so v2 card invariants hold
 /// (extractors may leave empty placeholder cards until rebuild).
 pub fn validate_schema(ir: &FileParseIR) -> Result<(), String> {
-    if ir.ir_version != 1 && ir.ir_version != 2 && ir.ir_version != 3 {
+    if ir.ir_version != 1 && ir.ir_version != 2 && ir.ir_version != 3 && ir.ir_version != 4 {
         return Err(format!(
-            "ir_version must be 1, 2 or 3, got {}",
+            "ir_version must be 1, 2, 3 or 4, got {}",
             ir.ir_version
         ));
     }

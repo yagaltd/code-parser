@@ -32,7 +32,7 @@ impl LanguageExtractor for RustExtractor {
         ctx.diagnostics = utils::collect_error_diagnostics(tree, source);
 
         FileParseIR {
-            ir_version: 3,
+            ir_version: 4,
             path: file_path.to_string(),
             language: Language::Rust.as_str().to_string(),
             content_hash,
@@ -61,6 +61,10 @@ struct ExtractCtx<'a> {
     current_caller: Option<String>,
     /// Current impl type name stack (e.g. "Cache") — used for Method qualified names.
     impl_stack: Vec<String>,
+    /// Module name stack (`mod a { ... }`): every symbol inside a module is
+    /// keyed with its module prefix (e.g. `a::foo`, `a::S::m`) so same-file
+    /// collisions between modules can never happen (fix B).
+    mod_stack: Vec<String>,
     /// Test context stack: pushed when visiting `mod tests` or a
     /// `#[cfg(test)]` module, so every symbol inside is flagged is_test.
     test_ctx: Vec<bool>,
@@ -78,6 +82,7 @@ impl<'a> ExtractCtx<'a> {
             diagnostics: Vec::new(),
             current_caller: None,
             impl_stack: Vec::new(),
+            mod_stack: Vec::new(),
             test_ctx: Vec::new(),
             file_path: "",
         }
@@ -97,6 +102,27 @@ impl<'a> ExtractCtx<'a> {
 
     fn text(&self, node: &Node) -> &str {
         utils::node_text(node, self.source)
+    }
+
+    /// Module(+impl) prefix for qualified names: `a::S` inside
+    /// `mod a { impl S { ... } }`, `a` inside `mod a`, "" at file root.
+    fn qualified_prefix(&self, impl_type: Option<&str>) -> String {
+        let mut parts: Vec<&str> = self.mod_stack.iter().map(String::as_str).collect();
+        if let Some(ty) = impl_type {
+            parts.push(ty);
+        }
+        parts.join("::")
+    }
+
+    /// Qualified/local names for module-level items (structs, enums, traits):
+    /// `a::S` inside `mod a`, plain `S` at file root.
+    fn qualified_item_names(&self, name: &str) -> (String, String) {
+        let prefix = self.mod_stack.join("::");
+        if prefix.is_empty() {
+            (name.to_string(), name.to_string())
+        } else {
+            (format!("{prefix}::{name}"), format!("{prefix}::{name}"))
+        }
     }
 
     // ── recursive walk ───────────────────────────────────────────────
@@ -126,14 +152,18 @@ impl<'a> ExtractCtx<'a> {
                 self.visit_function(node, impl_type.as_deref());
             }
             "mod_item" => {
-                let is_test_mod = field_text(node, "name", self.source)
-                    .map(|n| n == "tests")
-                    .unwrap_or(false)
-                    || has_test_attribute(node, self.source);
+                let name = field_text(node, "name", self.source).unwrap_or_default();
+                let is_test_mod = name == "tests" || has_test_attribute(node, self.source);
                 if is_test_mod {
                     self.test_ctx.push(true);
                 }
+                if !name.is_empty() {
+                    self.mod_stack.push(name.clone());
+                }
                 self.visit_children(node);
+                if !name.is_empty() {
+                    self.mod_stack.pop();
+                }
                 if is_test_mod {
                     self.test_ctx.pop();
                 }
@@ -178,14 +208,16 @@ impl<'a> ExtractCtx<'a> {
         let sig = build_signature(node, self.source);
         let doc = extract_docstring(node, self.source);
 
-        let (qualified_name, local_key, kind) = if let Some(impl_ty) = impl_type {
-            (
-                format!("{impl_ty}::{name}"),
-                format!("{impl_ty}::{name}"),
-                SymbolKind::Method,
-            )
+        let prefix = self.qualified_prefix(impl_type);
+        let kind = if impl_type.is_some() {
+            SymbolKind::Method
         } else {
-            (name.clone(), name.clone(), SymbolKind::Function)
+            SymbolKind::Function
+        };
+        let (qualified_name, local_key) = if prefix.is_empty() {
+            (name.clone(), name.clone())
+        } else {
+            (format!("{prefix}::{name}"), format!("{prefix}::{name}"))
         };
 
         self.symbols.push(SymbolIR {
@@ -215,11 +247,12 @@ impl<'a> ExtractCtx<'a> {
     fn visit_struct(&mut self, node: &Node<'a>) {
         let name = field_text(node, "name", self.source).unwrap_or_default();
         let doc = extract_docstring(node, self.source);
+        let (local_key, qualified_name) = self.qualified_item_names(&name);
 
         self.symbols.push(SymbolIR {
-            local_key: name.clone(),
+            local_key: local_key.clone(),
             name: name.clone(),
-            qualified_name: name.clone(),
+            qualified_name: qualified_name.clone(),
             kind: SymbolKind::Struct,
             start_line: utils::point_line(node),
             end_line: utils::point_end_line(node),
@@ -239,11 +272,12 @@ impl<'a> ExtractCtx<'a> {
     fn visit_enum(&mut self, node: &Node<'a>) {
         let name = field_text(node, "name", self.source).unwrap_or_default();
         let doc = extract_docstring(node, self.source);
+        let (local_key, qualified_name) = self.qualified_item_names(&name);
 
         self.symbols.push(SymbolIR {
-            local_key: name.clone(),
+            local_key: local_key.clone(),
             name: name.clone(),
-            qualified_name: name.clone(),
+            qualified_name: qualified_name.clone(),
             kind: SymbolKind::Enum,
             start_line: utils::point_line(node),
             end_line: utils::point_end_line(node),
@@ -261,11 +295,12 @@ impl<'a> ExtractCtx<'a> {
     fn visit_trait(&mut self, node: &Node<'a>) {
         let name = field_text(node, "name", self.source).unwrap_or_default();
         let doc = extract_docstring(node, self.source);
+        let (local_key, qualified_name) = self.qualified_item_names(&name);
 
         self.symbols.push(SymbolIR {
-            local_key: name.clone(),
+            local_key: local_key.clone(),
             name: name.clone(),
-            qualified_name: name.clone(),
+            qualified_name: qualified_name.clone(),
             kind: SymbolKind::Trait,
             start_line: utils::point_line(node),
             end_line: utils::point_end_line(node),
@@ -729,15 +764,19 @@ fn split_scoped(text: &str) -> (String, String) {
 // ── In-file resolution ───────────────────────────────────────────────────
 
 fn resolve_in_file(ctx: &mut ExtractCtx) {
-    // Build lookup: name → local_key and qualified_name → local_key.
+    // Bare-name lookup binds ONLY to file-root symbols (no `::` in the
+    // qualified name): a same-module sibling is preferred via the scoped
+    // lookup below, and a call can never silently bind across modules.
     let mut by_name: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     let mut by_qualified: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
 
     for sym in &ctx.symbols {
-        by_name
-            .entry(sym.name.clone())
-            .or_insert_with(|| sym.local_key.clone());
+        if !sym.qualified_name.contains("::") {
+            by_name
+                .entry(sym.name.clone())
+                .or_insert_with(|| sym.local_key.clone());
+        }
         by_qualified
             .entry(sym.qualified_name.clone())
             .or_insert_with(|| sym.local_key.clone());
@@ -747,22 +786,41 @@ fn resolve_in_file(ctx: &mut ExtractCtx) {
         if call.callee_local_key.is_some() {
             continue;
         }
-        // 1. Exact bare name match.
+        if call.callee_name.contains("::") {
+            // Qualified callee (`a::foo`, `S::m`): exact qualified_name match.
+            if let Some(key) = by_qualified.get(&call.callee_name) {
+                call.callee_local_key = Some(key.clone());
+                call.callee_external = false;
+                continue;
+            }
+            // Qualified but not found in this file → external.
+            call.callee_external = true;
+            continue;
+        }
+        // Bare callee: first try the caller's own module scope, then
+        // file-root symbols, then give up (unresolved, NOT external).
+        let caller_prefix = caller_module_prefix(&call.caller_local_key);
+        if !caller_prefix.is_empty() {
+            let scoped = format!("{caller_prefix}::{}", call.callee_name);
+            if let Some(key) = by_qualified.get(&scoped) {
+                call.callee_local_key = Some(key.clone());
+                call.callee_external = false;
+                continue;
+            }
+        }
         if let Some(key) = by_name.get(&call.callee_name) {
             call.callee_local_key = Some(key.clone());
             call.callee_external = false;
-            continue;
         }
-        // 2. Exact qualified_name match.
-        if let Some(key) = by_qualified.get(&call.callee_name) {
-            call.callee_local_key = Some(key.clone());
-            call.callee_external = false;
-            continue;
-        }
-        // 3. Contains '::' but not found — external.
-        if call.callee_name.contains("::") {
-            call.callee_external = true;
-        }
+    }
+}
+
+/// Everything before the last `::` of a caller local_key ("a" for `a::foo`,
+/// "" for file-root callers like `main`).
+fn caller_module_prefix(local_key: &str) -> &str {
+    match local_key.rfind("::") {
+        Some(pos) => &local_key[..pos],
+        None => "",
     }
 }
 
@@ -828,7 +886,7 @@ mod tests {
         let mut ir = ir;
         ir.metrics =
             crate::metrics::compute(&tree, source, crate::metrics::comment_kinds(&ir.language));
-        ir.ir_version = 3;
+        ir.ir_version = 4;
         ir
     }
 
@@ -1271,6 +1329,136 @@ fn free() {}
         assert_eq!(free.qualified_name, "free");
     }
 
+    // ── Module-qualified names + scope-aware resolution (fix B) ──────
+
+    #[test]
+    fn module_qualified_symbol_keys() {
+        let src = r#"
+mod a {
+    fn foo() {}
+    struct S;
+    impl S {
+        fn m() {}
+    }
+}
+mod b {
+    fn foo() {}
+}
+fn main() {}
+"#;
+        let ir = parse_rust(src.as_bytes(), "mods.rs");
+        let keys: Vec<&str> = ir.symbols.iter().map(|s| s.local_key.as_str()).collect();
+        assert!(
+            keys.contains(&"a::foo") && keys.contains(&"b::foo"),
+            "same-named fns in different mods must get distinct keys: {keys:?}"
+        );
+        assert!(keys.contains(&"a::S"), "struct key must be module-qualified: {keys:?}");
+        assert!(
+            keys.contains(&"a::S::m"),
+            "impl method must carry mod+impl prefix: {keys:?}"
+        );
+        assert!(keys.contains(&"main"), "file-root fn stays unqualified: {keys:?}");
+        // Distinct local_keys → cross-file table keys are collision-free.
+        let a_foo = ir.symbols.iter().find(|s| s.local_key == "a::foo").unwrap();
+        let b_foo = ir.symbols.iter().find(|s| s.local_key == "b::foo").unwrap();
+        assert_eq!(a_foo.qualified_name, "a::foo");
+        assert_eq!(b_foo.qualified_name, "b::foo");
+    }
+
+    #[test]
+    fn scope_aware_resolution_prefers_caller_module() {
+        let src = r#"
+mod a {
+    fn foo() {}
+    pub fn call() {
+        foo();
+    }
+}
+mod b {
+    fn foo() {}
+    pub fn call() {
+        foo();
+    }
+}
+fn foo() {}
+fn main() {
+    foo();
+}
+"#;
+        let ir = parse_rust(src.as_bytes(), "mods.rs");
+
+        // Call inside mod a → a::foo; inside mod b → b::foo (sibling scope).
+        let a_call = ir
+            .calls
+            .iter()
+            .find(|c| c.caller_local_key == "a::call")
+            .unwrap();
+        assert_eq!(a_call.callee_local_key.as_deref(), Some("a::foo"));
+        let b_call = ir
+            .calls
+            .iter()
+            .find(|c| c.caller_local_key == "b::call")
+            .unwrap();
+        assert_eq!(b_call.callee_local_key.as_deref(), Some("b::foo"));
+
+        // File-root caller binds the file-root foo, never a::foo.
+        let main_call = ir
+            .calls
+            .iter()
+            .find(|c| c.caller_local_key == "main")
+            .unwrap();
+        assert_eq!(main_call.callee_local_key.as_deref(), Some("foo"));
+        assert!(!main_call.callee_external);
+    }
+
+    #[test]
+    fn qualified_call_resolves_exact_module() {
+        let src = r#"
+mod a {
+    fn foo() {}
+}
+mod b {
+    fn foo() {}
+    pub fn call() {
+        a::foo();
+    }
+}
+"#;
+        let ir = parse_rust(src.as_bytes(), "mods.rs");
+        let call = ir
+            .calls
+            .iter()
+            .find(|c| c.callee_name == "a::foo")
+            .expect("a::foo call");
+        assert_eq!(call.callee_local_key.as_deref(), Some("a::foo"));
+        assert!(!call.callee_external);
+    }
+
+    #[test]
+    fn bare_call_to_missing_module_symbol_stays_unresolved() {
+        // No file-root foo anywhere: main's bare foo() must stay unresolved
+        // (not external, and never silently bound to a::foo).
+        let src = r#"
+mod a {
+    fn foo() {}
+}
+mod b {
+    fn foo() {}
+}
+fn main() {
+    foo();
+}
+"#;
+        let ir = parse_rust(src.as_bytes(), "mods.rs");
+        let call = ir
+            .calls
+            .iter()
+            .find(|c| c.caller_local_key == "main")
+            .unwrap();
+        assert_eq!(call.callee_local_key, None);
+        assert!(!call.callee_external, "bare miss is unresolved, not external");
+    }
+
     #[test]
     fn content_hash_stable_across_parses() {
         let src = MOD_A.as_bytes();
@@ -1383,8 +1571,14 @@ mod cfg_tests {
         };
         assert!(!flag("prod"), "prod must not be test");
         assert!(flag("unit_test"), "#[test] fn must be test");
-        assert!(flag("helper_in_tests"), "mod tests content must be test");
-        assert!(flag("also_test"), "#[cfg(test)] mod content must be test");
+        assert!(
+            flag("tests::helper_in_tests"),
+            "mod tests content must be test (module-qualified key)"
+        );
+        assert!(
+            flag("cfg_tests::also_test"),
+            "#[cfg(test)] mod content must be test (module-qualified key)"
+        );
 
         let file_ir = parse_rust(b"pub fn t() {}", "tests/integration.rs");
         assert!(file_ir.symbols[0].is_test, "tests/ dir file must be test");

@@ -170,7 +170,7 @@ pub fn parse_file_bytes(path: &str, source: &[u8]) -> Result<FileParseIR, anyhow
     ir.metrics = metrics::compute(&tree, source, metrics::comment_kinds(&ir.language));
 
     // A1: always build retrieval cards after extract+resolve.
-    ir.ir_version = 3;
+    ir.ir_version = 4;
     let (file_card, symbol_cards) = code_parser_ir::build_all_cards(&ir, &Default::default());
     ir.retrieval_card = file_card;
     ir.symbol_cards = symbol_cards;
