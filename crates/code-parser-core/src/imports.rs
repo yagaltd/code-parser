@@ -136,7 +136,9 @@ pub fn resolve_import_paths(irs: &mut [FileParseIR], root: &Path) {
             }
             let spec = imp.target_module.clone();
             let ri = resolve_import(&spec, &from_file, cfg.as_ref());
-            let Some(candidate) = ri.target_path else { continue };
+            let Some(candidate) = ri.target_path else {
+                continue;
+            };
             if let Some(hit) = probe_existing(root, &candidate) {
                 imp.resolved = Some(hit);
             }
@@ -279,10 +281,8 @@ mod tests {
     #[test]
     fn extension_probe_order_and_index_fallback() {
         // Real-filesystem probing (no mocks): temp dir as the repo root.
-        let dir = std::env::temp_dir().join(format!(
-            "code-parser-imports-probe-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("code-parser-imports-probe-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("src")).unwrap();
         std::fs::write(dir.join("src/util.ts"), "export const util = 1;\n").unwrap();
@@ -327,11 +327,8 @@ mod tests {
     #[test]
     fn e2e_parse_repo_fills_resolved_for_alias_fixture() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/ts/alias");
-        let results = crate::parse_repo(
-            &root,
-            Some(vec![crate::language::Language::TypeScript]),
-        )
-        .unwrap();
+        let results =
+            crate::parse_repo(&root, Some(vec![crate::language::Language::TypeScript])).unwrap();
 
         let by_path: HashMap<&str, &FileParseIR> = results
             .iter()

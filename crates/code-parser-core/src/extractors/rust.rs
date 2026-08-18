@@ -557,7 +557,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                     kind: ImportKind::Named,
                     line,
                     column: Some(utils::point_column(node)),
-            resolved: None,
+                    resolved: None,
                 });
             }
             return;
@@ -574,7 +574,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 kind: ImportKind::Named,
                 line,
                 column: Some(utils::point_column(node)),
-            resolved: None,
+                resolved: None,
             });
         }
         "use_wildcard" => {
@@ -590,7 +590,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 kind: ImportKind::Star,
                 line,
                 column: Some(utils::point_column(node)),
-            resolved: None,
+                resolved: None,
             });
         }
         "use_as_clause" => {
@@ -612,7 +612,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 kind: ImportKind::Named,
                 line,
                 column: Some(utils::point_column(node)),
-            resolved: None,
+                resolved: None,
             });
         }
         "scoped_identifier" => {
@@ -625,7 +625,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 kind: ImportKind::Named,
                 line,
                 column: Some(utils::point_column(node)),
-            resolved: None,
+                resolved: None,
             });
         }
         "scoped_use_list" => {
@@ -670,7 +670,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                                 kind: ImportKind::Named,
                                 line,
                                 column: Some(utils::point_column(node)),
-            resolved: None,
+                                resolved: None,
                             });
                         }
                         "use_as_clause" => {
@@ -698,7 +698,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                                 kind: ImportKind::Named,
                                 line,
                                 column: Some(utils::point_column(node)),
-            resolved: None,
+                                resolved: None,
                             });
                         }
                         _ => {}
@@ -719,7 +719,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                             kind: ImportKind::Named,
                             line,
                             column: Some(utils::point_column(node)),
-            resolved: None,
+                            resolved: None,
                         });
                     }
                     "use_as_clause" => {
@@ -739,7 +739,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                             kind: ImportKind::Named,
                             line,
                             column: Some(utils::point_column(node)),
-            resolved: None,
+                            resolved: None,
                         });
                     }
                     _ => {}
@@ -755,7 +755,7 @@ fn extract_use_decl(node: &Node, source: &[u8], line: Option<u32>, imports: &mut
                 kind: ImportKind::Named,
                 line,
                 column: Some(utils::point_column(node)),
-            resolved: None,
+                resolved: None,
             });
         }
     }
@@ -1104,7 +1104,11 @@ use a::{b, c as d, e};
         assert_eq!(list_names, ["b", "d", "e"]);
         for imp in ir.imports.iter().filter(|i| i.line == Some(4)) {
             assert_eq!(imp.kind, ImportKind::Named);
-            assert!(imp.target_module.starts_with("a::"), "{}", imp.target_module);
+            assert!(
+                imp.target_module.starts_with("a::"),
+                "{}",
+                imp.target_module
+            );
         }
         let b = ir.imports.iter().find(|i| i.import_name == "b").unwrap();
         assert_eq!(b.target_module, "a::b");
@@ -1241,7 +1245,11 @@ use a::{b, c as d, e};
             .find(|d| d.severity == DiagnosticSeverity::Error)
             .unwrap_or_else(|| panic!("expected an Error diagnostic, got {:?}", ir.diagnostics));
         // The `let x =` region is the first maximal ERROR region (line 2).
-        assert_eq!(err.line, Some(2), "Error diagnostic must carry the right line");
+        assert_eq!(
+            err.line,
+            Some(2),
+            "Error diagnostic must carry the right line"
+        );
         assert!(
             err.byte_span.is_some(),
             "Error diagnostic must carry a byte span"
@@ -1363,12 +1371,18 @@ fn main() {}
             keys.contains(&"a::foo") && keys.contains(&"b::foo"),
             "same-named fns in different mods must get distinct keys: {keys:?}"
         );
-        assert!(keys.contains(&"a::S"), "struct key must be module-qualified: {keys:?}");
+        assert!(
+            keys.contains(&"a::S"),
+            "struct key must be module-qualified: {keys:?}"
+        );
         assert!(
             keys.contains(&"a::S::m"),
             "impl method must carry mod+impl prefix: {keys:?}"
         );
-        assert!(keys.contains(&"main"), "file-root fn stays unqualified: {keys:?}");
+        assert!(
+            keys.contains(&"main"),
+            "file-root fn stays unqualified: {keys:?}"
+        );
         // Distinct local_keys → cross-file table keys are collision-free.
         let a_foo = ir.symbols.iter().find(|s| s.local_key == "a::foo").unwrap();
         let b_foo = ir.symbols.iter().find(|s| s.local_key == "b::foo").unwrap();
@@ -1467,7 +1481,10 @@ fn main() {
             .find(|c| c.caller_local_key == "main")
             .unwrap();
         assert_eq!(call.callee_local_key, None);
-        assert!(!call.callee_external, "bare miss is unresolved, not external");
+        assert!(
+            !call.callee_external,
+            "bare miss is unresolved, not external"
+        );
     }
 
     #[test]

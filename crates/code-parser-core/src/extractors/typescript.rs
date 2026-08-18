@@ -619,7 +619,7 @@ impl<'a> ExtractCtx<'a> {
                     kind: ImportKind::Default,
                     line,
                     column: Some(utils::point_column(node)),
-            resolved: None,
+                    resolved: None,
                 });
             }
         }
@@ -637,7 +637,7 @@ impl<'a> ExtractCtx<'a> {
                             kind: ImportKind::Named,
                             line,
                             column: Some(utils::point_column(node)),
-            resolved: None,
+                            resolved: None,
                         });
                     }
                 }
@@ -654,7 +654,7 @@ impl<'a> ExtractCtx<'a> {
                     kind: ImportKind::Star,
                     line,
                     column: Some(utils::point_column(node)),
-            resolved: None,
+                    resolved: None,
                 });
             }
         }
@@ -1045,9 +1045,13 @@ const double = (x: number): number => x * 2;
 
     #[test]
     fn broken_input_emits_diagnostics() {
-        let broken = b"export function fine() { return 1; }\nexport function broken( {\n  const x = ;\n}\n";
+        let broken =
+            b"export function fine() { return 1; }\nexport function broken( {\n  const x = ;\n}\n";
         let ir = parse_ts(broken, "broken.ts");
-        assert!(!ir.diagnostics.is_empty(), "broken TS must emit diagnostics");
+        assert!(
+            !ir.diagnostics.is_empty(),
+            "broken TS must emit diagnostics"
+        );
         assert!(
             ir.diagnostics
                 .iter()

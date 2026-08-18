@@ -509,7 +509,7 @@ impl<'a> ExtractCtx<'a> {
                             kind: ImportKind::Named,
                             line,
                             column: Some(utils::point_column(node)),
-            resolved: None,
+                            resolved: None,
                         });
                     }
                 }
@@ -525,7 +525,7 @@ impl<'a> ExtractCtx<'a> {
                         kind: ImportKind::Star,
                         line,
                         column: Some(utils::point_column(node)),
-            resolved: None,
+                        resolved: None,
                     });
                 }
 
@@ -540,7 +540,7 @@ impl<'a> ExtractCtx<'a> {
                             kind: ImportKind::Default,
                             line,
                             column: Some(utils::point_column(node)),
-            resolved: None,
+                            resolved: None,
                         });
                     }
                 } else if let Some(id) = utils::child_by_kind(c, "identifier") {
@@ -552,7 +552,7 @@ impl<'a> ExtractCtx<'a> {
                         kind: ImportKind::Default,
                         line,
                         column: Some(utils::point_column(node)),
-            resolved: None,
+                        resolved: None,
                     });
                 } else {
                     // Fallback: use import_clause source text.
@@ -564,7 +564,7 @@ impl<'a> ExtractCtx<'a> {
                             kind: ImportKind::Default,
                             line,
                             column: Some(utils::point_column(node)),
-            resolved: None,
+                            resolved: None,
                         });
                     }
                 }
@@ -1082,9 +1082,13 @@ console.log("done");
 
     #[test]
     fn broken_input_emits_diagnostics() {
-        let broken = b"export function fine() { return 1; }\nexport function broken( {\n  const x = ;\n}\n";
+        let broken =
+            b"export function fine() { return 1; }\nexport function broken( {\n  const x = ;\n}\n";
         let ir = parse_js(broken, "broken.js");
-        assert!(!ir.diagnostics.is_empty(), "broken JS must emit diagnostics");
+        assert!(
+            !ir.diagnostics.is_empty(),
+            "broken JS must emit diagnostics"
+        );
         assert!(
             ir.diagnostics
                 .iter()
