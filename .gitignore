@@ -13,6 +13,6 @@ target/
 # Pi subagent artifacts (transient)
 .pi-subagents/
 
-# Phase planning documents (ephemeral, not shipped)
-*PHASE*.md
+# Planning documents (ephemeral, not shipped)
+*_PLAN.md
 code-parser-v2.md
