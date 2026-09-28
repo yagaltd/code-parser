@@ -3,6 +3,12 @@ name = "code-parser-cli"
 version = "0.1.0"
 edition = "2021"
 description = "CLI for code-parser — parse, parse-repo, watch"
+license = "MIT"
+repository = "https://github.com/yagaltd/code-parser"
+rust-version = "1.82"
+keywords = ["code-parser", "cli", "tree-sitter"]
+categories = ["development-tools", "command-line-utilities"]
+
 
 [dependencies]
 code-parser-core = { path = "../code-parser-core" }

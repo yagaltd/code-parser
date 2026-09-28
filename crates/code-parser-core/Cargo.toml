@@ -3,6 +3,12 @@ name = "code-parser-core"
 version = "0.1.0"
 edition = "2021"
 description = "tree-sitter engine for code-parser — parse, extract, resolve"
+license = "MIT"
+repository = "https://github.com/yagaltd/code-parser"
+rust-version = "1.82"
+keywords = ["code-parser", "tree-sitter", "parser", "code-analysis"]
+categories = ["development-tools", "parser-implementations"]
+
 
 [dependencies]
 code-parser-ir = { path = "../code-parser-ir" }

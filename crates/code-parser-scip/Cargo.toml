@@ -3,6 +3,12 @@ name = "code-parser-scip"
 version = "0.1.0"
 edition = "2021"
 description = "SCIP overlay producer — rust-analyzer scip out-of-process → resolved call bindings"
+license = "MIT"
+repository = "https://github.com/yagaltd/code-parser"
+rust-version = "1.82"
+keywords = ["scip", "rust-analyzer", "code-intelligence"]
+categories = ["development-tools"]
+
 
 [dependencies]
 scip = "0.9"

@@ -3,6 +3,12 @@ name = "code-parser-ir"
 version = "0.1.0"
 edition = "2021"
 description = "FileParseIR types for code-parser — zero heavy deps"
+license = "MIT"
+repository = "https://github.com/yagaltd/code-parser"
+rust-version = "1.82"
+keywords = ["code-parser", "tree-sitter", "ir"]
+categories = ["development-tools", "parser-implementations"]
+
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
