@@ -5,15 +5,18 @@
 //! the specifier maps to a real file in the repo — relative (`./` `../`)
 //! paths normalized against the importing file, extension probing
 //! (`.ts` `.tsx` `.js` `.jsx`, then `/index.*`), and `tsconfig.json`
-//! `baseUrl`/`paths` aliases. Package specifiers (`react`, `lodash`) and
-//! missing tsconfigs behave exactly as before (`resolved: None`).
+//! `baseUrl`/`paths` aliases from the **nearest** tsconfig on the importing
+//! file's ancestor chain (`TsConfigSet` — monorepo / project-references
+//! aware, `extends` merged; see the README Resolution section for
+//! semantics). Package specifiers (`react`, `lodash`) and missing tsconfigs
+//! behave exactly as before (`resolved: None`).
 //!
 //! Wired into [`crate::parse_repo`] right after `resolve_cross_file`.
 //! `parse_file_bytes` (single-file path) stays syntactic-only by design —
 //! repo-level ingests fill `resolved` via [`resolve_import_paths`].
 
-use std::collections::HashMap;
-use std::path::{Component, Path};
+use std::collections::{BTreeMap, HashMap};
+use std::path::{Component, Path, PathBuf};
 
 use code_parser_ir::FileParseIR;
 
@@ -54,6 +57,213 @@ pub fn load_tsconfig(root: &Path) -> Option<TsConfig> {
             return None;
         }
     }
+}
+
+/// Cap on `extends` chain depth (cycle guard).
+const EXTENDS_MAX_DEPTH: usize = 10;
+
+/// All `tsconfig.json` files under a repo root, keyed by their repo-relative
+/// directory — the monorepo / project-references model. For each importing
+/// file, [`TsConfigSet::for_file`] returns the **nearest** tsconfig in its
+/// ancestor chain (TS project semantics: a file belongs to exactly one
+/// project; ancestor configs are not consulted as alias fallbacks).
+/// `extends` chains are merged (child overrides; `paths` replace wholesale
+/// when declared) and `baseUrl` is resolved against the directory of the
+/// config that declares it (TS ≥ 4.1 semantics).
+#[derive(Debug, Default, Clone)]
+pub struct TsConfigSet {
+    /// Repo-relative config dir ("" for the root) → effective config.
+    /// `base_url` is already rewritten to the repo-relative prefix that
+    /// `paths` targets resolve against ("" = repo root).
+    configs: BTreeMap<String, TsConfig>,
+    /// Legacy fallback: a config found *above* `root` (the pre-nesting
+    /// `load_tsconfig` up-walk) when no tsconfig exists inside the root.
+    /// Applies repo-wide with raw (root-relative) semantics.
+    fallback: Option<TsConfig>,
+}
+
+impl TsConfigSet {
+    /// Discover every `tsconfig.json` under `root` (gitignore-aware,
+    /// `.git` skipped) and resolve each against its `extends` chain.
+    /// Configs with neither `baseUrl` nor `paths` have no alias power and
+    /// are skipped — files under them fall through to the next ancestor.
+    pub fn discover(root: &Path) -> Self {
+        let mut set = TsConfigSet::default();
+        let walker = ignore::WalkBuilder::new(root)
+            .standard_filters(true)
+            .hidden(false)
+            .filter_entry(|e| e.file_name() != ".git")
+            .build();
+        for entry in walker.flatten() {
+            if !entry.file_type().is_some_and(|ft| ft.is_file()) {
+                continue;
+            }
+            if entry.file_name() != "tsconfig.json" {
+                continue;
+            }
+            let Ok(rel) = entry.path().strip_prefix(root) else {
+                continue;
+            };
+            let dir = rel
+                .parent()
+                .map(|p| normalize_repo_path(p))
+                .unwrap_or_default();
+            if let Some(cfg) = load_effective(entry.path(), root) {
+                set.configs.insert(dir, cfg);
+            }
+        }
+        if set.configs.is_empty() {
+            set.fallback = load_tsconfig(root);
+        }
+        set
+    }
+
+    /// Effective config governing `from_file` (repo-relative path): the
+    /// nearest discovered config directory on its ancestor chain, else the
+    /// legacy fallback.
+    pub fn for_file(&self, from_file: &str) -> Option<&TsConfig> {
+        let file_dir = Path::new(from_file)
+            .parent()
+            .map(normalize_repo_path)
+            .unwrap_or_default();
+        let mut best: Option<(&String, &TsConfig)> = None;
+        for (dir, cfg) in &self.configs {
+            let governs =
+                dir.is_empty() || file_dir == *dir || file_dir.starts_with(&format!("{dir}/"));
+            if governs && best.is_none_or(|(bd, _)| dir.len() > bd.len()) {
+                best = Some((dir, cfg));
+            }
+        }
+        best.map(|(_, cfg)| cfg).or(self.fallback.as_ref())
+    }
+
+    /// Number of discovered configs (test/debug aid).
+    pub fn len(&self) -> usize {
+        self.configs.len()
+    }
+
+    /// True when no configs were discovered.
+    pub fn is_empty(&self) -> bool {
+        self.configs.is_empty()
+    }
+}
+
+/// `compilerOptions` of one tsconfig before `extends` resolution.
+#[derive(Default)]
+struct RawOpts {
+    base_url: Option<String>,
+    /// `Some` only when the `paths` key is present (empty object replaces).
+    paths: Option<HashMap<String, Vec<String>>>,
+    extends: Option<String>,
+}
+
+/// Effective config for one `tsconfig.json`: walk its `extends` chain
+/// (relative specifiers only; package-style extends targets are external),
+/// merge child-first (child overrides; `paths` replace wholesale when the
+/// key exists), and rewrite `baseUrl` — resolved against the declaring
+/// config's directory — into a repo-relative prefix. When no `baseUrl` is
+/// declared anywhere, `paths` targets resolve against the directory of the
+/// config that declares them (TS ≥ 4.1).
+fn load_effective(config_path: &Path, root: &Path) -> Option<TsConfig> {
+    let mut chain: Vec<(PathBuf, RawOpts)> = Vec::new();
+    let mut current = config_path.to_path_buf();
+    for _ in 0..EXTENDS_MAX_DEPTH {
+        let Some(raw) = parse_raw_opts(&current) else {
+            break;
+        };
+        let next = raw.extends.as_ref().map(|ext| {
+            // TS appends `.json` when missing; multi-dot names must survive.
+            let dir = current.parent().unwrap_or(Path::new(""));
+            if ext.ends_with(".json") {
+                dir.join(ext)
+            } else {
+                dir.join(format!("{ext}.json"))
+            }
+        });
+        chain.push((current.clone(), raw));
+        match next {
+            Some(p) if p.is_file() => current = p,
+            _ => break,
+        }
+    }
+
+    // Merge child → base: the first declaration wins (child overrides).
+    // Config dirs are repo-relative (extends targets above `root` degrade
+    // gracefully — their targets simply never probe to a real file).
+    let rel_dir = |config_file: &Path| -> String {
+        let d = config_file.parent().unwrap_or(Path::new(""));
+        d.strip_prefix(root)
+            .map(normalize_repo_path)
+            .unwrap_or_else(|_| normalize_repo_path(d))
+    };
+    let mut base_decl: Option<(String, String)> = None;
+    let mut paths_decl: Option<(HashMap<String, Vec<String>>, String)> = None;
+    for (dir, raw) in &chain {
+        let dir_rel = rel_dir(dir);
+        if base_decl.is_none() {
+            if let Some(b) = &raw.base_url {
+                base_decl = Some((b.clone(), dir_rel.clone()));
+            }
+        }
+        if paths_decl.is_none() {
+            if let Some(p) = &raw.paths {
+                paths_decl = Some((p.clone(), dir_rel));
+            }
+        }
+    }
+
+    let (paths, paths_dir) = paths_decl?; // no paths → no alias power
+    let base_prefix = match base_decl {
+        Some((raw, dir)) => normalize_repo_path(&Path::new(&dir).join(raw)),
+        None => paths_dir,
+    };
+
+    let mut cfg = TsConfig {
+        base_url: None,
+        paths,
+    };
+    if !base_prefix.is_empty() {
+        cfg.base_url = Some(base_prefix);
+    }
+    Some(cfg)
+}
+
+/// Read one tsconfig's `compilerOptions.baseUrl` / `paths` and top-level
+/// `extends` (string, or first string of a TS 5 array).
+fn parse_raw_opts(path: &Path) -> Option<RawOpts> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let mut raw = RawOpts::default();
+    if let Some(opts) = json.get("compilerOptions") {
+        if let Some(b) = opts.get("baseUrl").and_then(|v| v.as_str()) {
+            raw.base_url = Some(b.trim_end_matches('/').to_string());
+        }
+        if let Some(p) = opts.get("paths").and_then(|v| v.as_object()) {
+            let mut map = HashMap::new();
+            for (key, targets) in p {
+                let list: Vec<String> = targets
+                    .as_array()
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                if !list.is_empty() {
+                    map.insert(key.clone(), list);
+                }
+            }
+            raw.paths = Some(map);
+        }
+    }
+    match json.get("extends") {
+        Some(serde_json::Value::String(s)) => raw.extends = Some(s.clone()),
+        Some(serde_json::Value::Array(arr)) => {
+            raw.extends = arr.iter().find_map(|v| v.as_str().map(String::from))
+        }
+        _ => {}
+    }
+    Some(raw)
 }
 
 fn parse_tsconfig(path: &Path) -> Option<TsConfig> {
@@ -123,8 +333,16 @@ pub fn resolve_import(spec: &str, from_file: &str, cfg: Option<&TsConfig>) -> Re
 /// Probe order (fix D acceptance): exact candidate, then `.ts` `.tsx` `.js`
 /// `.jsx`, then `/index.ts` `/index.tsx` `/index.js` `/index.jsx` — the
 /// first existing file wins. Rust/Python imports are left untouched.
+/// Aliases come from the **nearest** `tsconfig.json` for each importing
+/// file (see [`TsConfigSet`]).
 pub fn resolve_import_paths(irs: &mut [FileParseIR], root: &Path) {
-    let cfg = load_tsconfig(root);
+    let configs = TsConfigSet::discover(root);
+    resolve_import_paths_with(irs, root, &configs);
+}
+
+/// [`resolve_import_paths`] with a pre-discovered [`TsConfigSet`] — use
+/// when resolving repeatedly against the same tree (e.g. [`crate::RepoState`]).
+pub fn resolve_import_paths_with(irs: &mut [FileParseIR], root: &Path, configs: &TsConfigSet) {
     for ir in irs.iter_mut() {
         if ir.language != "TypeScript" && ir.language != "JavaScript" {
             continue;
@@ -135,7 +353,7 @@ pub fn resolve_import_paths(irs: &mut [FileParseIR], root: &Path) {
                 continue;
             }
             let spec = imp.target_module.clone();
-            let ri = resolve_import(&spec, &from_file, cfg.as_ref());
+            let ri = resolve_import(&spec, &from_file, configs.for_file(&from_file));
             let Some(candidate) = ri.target_path else {
                 continue;
             };
@@ -362,5 +580,78 @@ mod tests {
             .find(|i| i.target_module == "react")
             .expect("react import");
         assert_eq!(react.resolved, None);
+    }
+
+    #[test]
+    fn e2e_nested_tsconfigs_nearest_match_and_extends() {
+        // Monorepo fixture: packages/a extends tsconfig.base.json (own
+        // baseUrl), packages/b has no config → governed by the root one.
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/ts/nested");
+        let results =
+            crate::parse_repo(&root, Some(vec![crate::language::Language::TypeScript])).unwrap();
+
+        let by_path: HashMap<&str, &FileParseIR> = results
+            .iter()
+            .map(|r| (r.ir.path.as_str(), &r.ir))
+            .collect();
+
+        // packages/a/src/index.ts: nearest config = packages/a/tsconfig.json
+        // → extends base (paths ~/* → src/*), child baseUrl "." → packages/a.
+        // Same alias `~/*` resolves DIFFERENTLY per package:
+        let a = by_path.get("packages/a/src/index.ts").expect("index.ts");
+        let util = a
+            .imports
+            .iter()
+            .find(|i| i.target_module == "~/util")
+            .unwrap();
+        assert_eq!(
+            util.resolved.as_deref(),
+            Some("packages/a/src/util.ts"),
+            "nearest config with extends must govern package files"
+        );
+        let react = a
+            .imports
+            .iter()
+            .find(|i| i.target_module == "react")
+            .unwrap();
+        assert_eq!(react.resolved, None);
+
+        // packages/b/src/i.ts: no nested config → root tsconfig (~/* → root-src/*).
+        let b = by_path.get("packages/b/src/i.ts").expect("i.ts");
+        let x = b.imports.iter().find(|i| i.target_module == "~/x").unwrap();
+        assert_eq!(x.resolved.as_deref(), Some("root-src/x.ts"));
+    }
+
+    #[test]
+    fn tsconfig_set_discovery_and_extends_merge() {
+        // Synthetic monorepo in a temp dir: child extends base, overrides
+        // baseUrl; base declares the shared paths.
+        let dir = std::env::temp_dir().join(format!("code-parser-tsset-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("packages/a/src")).unwrap();
+        std::fs::write(
+            dir.join("tsconfig.base.json"),
+            r#"{"compilerOptions":{"baseUrl":".","paths":{"~/*":["src/*"]}}}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("packages/a/tsconfig.json"),
+            r#"{"extends":"../../tsconfig.base.json","compilerOptions":{"baseUrl":"."}}"#,
+        )
+        .unwrap();
+
+        let set = TsConfigSet::discover(&dir);
+        assert_eq!(set.len(), 1, "only packages/a has alias power");
+
+        // baseUrl "." declared by the CHILD → prefix is packages/a.
+        let cfg = set
+            .for_file("packages/a/src/index.ts")
+            .expect("effective config");
+        assert_eq!(cfg.base_url.as_deref(), Some("packages/a"));
+        assert!(cfg.paths.contains_key("~/*"));
+        // Files elsewhere are governed by no config (base has no tsconfig.json).
+        assert!(set.for_file("other/src/x.ts").is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
