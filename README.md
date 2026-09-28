@@ -37,8 +37,9 @@ cargo run -- parse src/main.rs --card-only
 # Parse a whole repo → newline-delimited JSON
 cargo run -- parse-repo . --languages rust --jsonl
 
-# Watch a directory → emit IR on change (requires --features watcher)
-cargo run --features watcher -- watch . --emit jsonl
+# Watch a repo: initial snapshot, then incremental JSONL events
+# (requires --features watcher)
+cargo run --features rust,typescript,javascript,python,watcher -- watch . --emit jsonl
 
 # Validate a file parses without errors
 cargo run -- check src/main.rs
@@ -104,10 +105,11 @@ Consumers that persist parsed output should re-ingest once after the bump
 pass in `parse_repo` for TS/JS imports whose specifier maps to a real repo
 file — relative paths (`./` `../`) normalized against the importing file,
 extension probing (`.ts` `.tsx` `.js` `.jsx`, then `/index.*`), and
-`tsconfig.json` `baseUrl`/`paths` aliases (`~/*` etc.). `target_module` is
-never rewritten; package specifiers and single-file parses keep `None`.
-Resolution lives in `imports.rs` (`load_tsconfig` / `resolve_import` /
-`resolve_import_paths`).
+`tsconfig.json` `baseUrl`/`paths` aliases (`~/*` etc.). Aliases come from
+the **nearest** `tsconfig.json` on the importing file's ancestor chain
+(monorepo / project-references model), with `extends` chains merged — see
+[Resolution](#resolution). Resolution lives in `imports.rs`
+(`TsConfigSet` / `resolve_import` / `resolve_import_paths`).
 
 See `fixtures/*/simple.ir.json` and `schema/file_parse_ir.v2.json`. Legacy `schema/file_parse_ir.v1.json` remains for old dumps only.
 
@@ -143,6 +145,49 @@ if let Some(result) = parse_file_cached(Path::new("src/main.rs"), &mut cache)? {
 }
 ```
 
+## Watch stream (incremental updates)
+
+`watch` emits an **initial snapshot** (every file, same IRs as `parse-repo --jsonl`)
+and then **incremental deltas** as files change. The watcher is registered
+before the snapshot, so nothing is missed in between. Only hash-changed
+files are re-parsed; the cross-file resolution passes (`callee_file`,
+`ImportIR.resolved`) are re-run over the whole set each batch, so edges
+never go stale — including **reverse-dependents**: renaming a callee
+re-emits the callers, deleting an import target re-emits the importer with
+`resolved: null`, and editing a `tsconfig.json` re-resolves the importers it
+governs (nearest-config hot-reload).
+
+The stream is a JSONL envelope (paths are always repo-relative):
+
+```json
+{"event":"updated","ir":{ …FileParseIR… }}
+{"event":"deleted","path":"src/foo.rs"}
+{"event":"batch_end","batch":7,"changed":3}
+```
+
+- `updated` — upsert the IR into your store, keyed by `ir.path`
+- `deleted` — remove the file and its edges (tombstone)
+- `batch_end` — commit point for one debounced batch (`changed` counts the
+  events above it); safe to flush there
+
+Deltas follow the same collection policy as the snapshot: non-source files,
+gitignored paths (e.g. `target/`), and paths outside the root are filtered.
+One exception: `tsconfig*.json` changes are captured — they re-run import
+resolution for the importers they govern (no IR event for the tsconfig
+itself). `--debounce-ms` (default 200) tunes the aggregation window.
+
+The same logic is available as a library, no filesystem events required:
+
+```rust
+use code_parser_core::{FileChange, RepoState};
+
+let mut state = RepoState::new(Path::new("."));
+for event in state.scan(None)? { /* initial snapshot */ }
+// on a debounced watcher batch:
+let changes = vec![FileChange { path: path_buf, deleted: false }];
+for event in state.apply_batch(&changes)? { /* delta */ }
+```
+
 ## Resolution
 
 - **In-file (scope-aware):** bare name → caller's module scope first (`b::foo`
@@ -151,6 +196,39 @@ if let Some(result) = parse_file_cached(Path::new("src/main.rs"), &mut cache)? {
   unresolved, never external.
 - **Cross-file:** qualified names with `::` → `callee_file` set to declaring file path
 - **External heuristic:** qualified name not found in repo → `callee_external: true`
+
+### TS/JS imports: nearest tsconfig (monorepo-aware)
+
+`ImportIR.resolved` is filled from the **nearest `tsconfig.json`** on the
+importing file's ancestor chain — matching how tsserver assigns files to
+projects. Nested tsconfigs are the norm (TypeScript project references,
+Nx/Turborepo/pnpm workspaces), so a single repo-root config would resolve
+nothing in real monorepos.
+
+Semantics (`TsConfigSet` in `imports.rs`):
+
+- **Nearest match** — a config governs every file beneath its directory;
+ancestor configs are *not* consulted as alias fallbacks (TS project
+semantics). A repo with only a root `tsconfig.json` behaves exactly as
+before (the root is the last stop on the chain).
+- **`extends` merged** — relative chains only (package-style extends targets
+are external). Child overrides; `paths` replace wholesale when declared.
+`baseUrl` resolves against the directory of the config that declares it
+(TS ≥ 4.1); with no `baseUrl` anywhere, `paths` targets resolve against the
+config that declares them.
+- Configs with neither `baseUrl` nor `paths` have no alias power and are
+skipped — files under them fall through to the next ancestor that has one.
+- `baseUrl`/`paths` from configs *above* the repo root still work via the
+legacy up-walk fallback when no tsconfig exists inside the root.
+
+Fixtures: `fixtures/ts/alias` (root config), `fixtures/ts/nested`
+(monorepo: package `a` extends a shared base with its own `baseUrl`,
+package `b` governed by the root config — same `~/*` alias, two different
+targets).
+
+In the watch stream, **tsconfig edits hot-reload**: any `tsconfig*.json`
+change (including `extends` targets like `tsconfig.base.json`) re-runs
+import resolution and re-emits exactly the importers it governs.
 
 Method calls, field chains, and trait resolution are out of scope for V1.
 

@@ -17,6 +17,7 @@ pub mod imports;
 pub mod language;
 pub mod metrics;
 pub mod parser;
+pub mod repo_state;
 pub mod resolve;
 pub mod watcher;
 
@@ -32,6 +33,7 @@ use extractors::LanguageExtractor;
 use language::Language;
 
 pub use cache::HashCache;
+pub use repo_state::{ChangeEvent, FileChange, RepoState};
 
 // ── Per-file extraction caps (borrow 2 hardening) ───────────────────────
 
@@ -296,8 +298,10 @@ pub fn parse_file_cached(
         return Ok(None);
     }
 
-    cache.update(&path_str, &hash);
     let ir = parse_file_bytes(&path_str, &source)?;
+    // Only record the hash after a successful parse — a failed parse must
+    // be retried on the next event, not silently swallowed by the cache.
+    cache.update(&path_str, &hash);
     Ok(Some(ParseResult {
         ir,
         errors: Vec::new(),

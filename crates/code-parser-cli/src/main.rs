@@ -42,13 +42,17 @@ enum Command {
         #[arg(long)]
         languages: Option<String>,
     },
-    /// Watch a directory for changes and emit IR on file modification.
+    /// Watch a directory: emit an initial snapshot, then incremental IR
+    /// updates (JSONL events) as files change.
     Watch {
         /// Root directory to watch.
         dir: PathBuf,
-        /// Output format: jsonl (line-delimited JSON).
+        /// Output format: jsonl (line-delimited JSON events).
         #[arg(long, default_value = "jsonl")]
         emit: String,
+        /// Debounce window in milliseconds.
+        #[arg(long, default_value = "200")]
+        debounce_ms: u64,
     },
     /// Validate a file parses without errors (no IR dump).
     Check {
@@ -71,7 +75,11 @@ fn main() -> anyhow::Result<()> {
             jsonl,
             languages,
         } => cmd_parse_repo(dir, jsonl, languages),
-        Command::Watch { dir, emit: _ } => cmd_watch(dir),
+        Command::Watch {
+            dir,
+            emit,
+            debounce_ms,
+        } => cmd_watch(dir, emit, debounce_ms),
         Command::Check { file } => cmd_check(file),
     }
 }
@@ -137,52 +145,64 @@ fn cmd_parse_repo(dir: PathBuf, jsonl: bool, languages: Option<String>) -> anyho
     Ok(())
 }
 
-fn cmd_watch(dir: PathBuf) -> anyhow::Result<()> {
+fn cmd_watch(dir: PathBuf, emit: String, debounce_ms: u64) -> anyhow::Result<()> {
+    if emit != "jsonl" {
+        anyhow::bail!("unsupported --emit format: {emit} (only jsonl)");
+    }
+
     #[cfg(feature = "watcher")]
     {
+        use code_parser_core::repo_state::{FileChange, RepoState};
         use code_parser_core::watcher::FileWatcher;
-        use code_parser_core::HashCache;
 
-        let watcher = FileWatcher::new(&dir).context("Failed to start file watcher")?;
-        let mut cache = HashCache::new();
+        // Watch BEFORE scanning: events landing during the initial snapshot
+        // are queued in the channel and processed as the first batch — no
+        // gap between snapshot and watch.
+        let watcher = FileWatcher::with_debounce(&dir, debounce_ms)
+            .context("Failed to start file watcher")?;
+        let mut state = RepoState::new(&dir);
+        let mut batch_no: u64 = 0;
 
-        eprintln!("Watching {} for changes...", dir.display());
+        // Initial snapshot — every file emits an `updated` event.
+        let snapshot = state.scan(None).context("Initial snapshot failed")?;
+        for event in &snapshot {
+            println!("{}", serde_json::to_string(&event)?);
+        }
+        eprintln!(
+            "Watching {} ({} files indexed) for changes...",
+            dir.display(),
+            snapshot.len()
+        );
 
-        loop {
-            let paths = match watcher.next_changes() {
-                Some(p) => p,
-                None => break,
-            };
-
-            for path in paths {
-                // Filter by extension.
-                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                if !matches!(
-                    ext,
-                    "rs" | "ts" | "tsx" | "js" | "jsx" | "mjs" | "py" | "pyi"
-                ) {
-                    continue;
-                }
-
-                match code_parser_core::parse_file_cached(&path, &mut cache) {
-                    Ok(Some(result)) => {
-                        let line = serde_json::to_string(&result.ir)?;
-                        println!("{line}");
-                    }
-                    Ok(None) => {
-                        // Hash unchanged — skipped.
-                    }
-                    Err(e) => {
-                        eprintln!("error: {path}: {e}", path = path.display());
-                    }
-                }
+        while let Some(watch_events) = watcher.next_changes() {
+            let changes: Vec<FileChange> = watch_events.into_iter().map(Into::into).collect();
+            let applied = state.apply_batch(&changes)?;
+            for event in &applied {
+                println!("{}", serde_json::to_string(&event)?);
             }
+            batch_no += 1;
+            // Batch commit point — consumers flush their store here.
+            // Mirrors the `event` tag shape of ChangeEvent.
+            #[derive(serde::Serialize)]
+            struct BatchEnd {
+                event: &'static str,
+                batch: u64,
+                changed: usize,
+            }
+            println!(
+                "{}",
+                serde_json::to_string(&BatchEnd {
+                    event: "batch_end",
+                    batch: batch_no,
+                    changed: applied.len(),
+                })?
+            );
         }
     }
 
     #[cfg(not(feature = "watcher"))]
     {
-        let _ = dir;
+        let _ = (dir, debounce_ms);
         anyhow::bail!(
             "File watching requires the 'watcher' feature. Rebuild with: cargo build --features watcher"
         );
