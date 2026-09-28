@@ -580,6 +580,7 @@ mod tests {
             content_hash: "abc123def4567890".into(),
             byte_len: 500,
             line_count: 42,
+            metrics: FileMetrics::default(),
             symbols: vec![
                 SymbolIR {
                     local_key: "main".into(),
@@ -594,6 +595,7 @@ mod tests {
                     parameters: vec![],
                     return_type: None,
                     docstring: Some("Entry point.".into()),
+                    is_test: false,
                 },
                 SymbolIR {
                     local_key: "Cache".into(),
@@ -608,6 +610,7 @@ mod tests {
                     parameters: vec![],
                     return_type: None,
                     docstring: None,
+                    is_test: false,
                 },
             ],
             calls: vec![
@@ -636,6 +639,7 @@ mod tests {
                 kind: ImportKind::Named,
                 line: Some(1),
                 column: None,
+                resolved: None,
             }],
             diagnostics: vec![],
             retrieval_card: RetrievalCard::default(),
