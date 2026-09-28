@@ -1,8 +1,24 @@
 # code-parser
 
-Tree-sitter engine that parses source files into versioned `FileParseIR` — symbols, calls, imports, diagnostics, and **always-present mechanical retrieval cards** — for consumption by downstream code indexes (e.g. CognitiveOS `domain_code`).
+Tree-sitter engine that parses source files into versioned `FileParseIR` — symbols, calls, imports, diagnostics, and **always-present mechanical retrieval cards** — for consumption by downstream code indexes.
 
-Parser always emits cards. Cos / domain chooses whether to store, lex, embed, or ignore them (ingest policy). There is no “parse without cards” mode.
+Parser always emits cards. The consumer chooses whether to store, lex, embed, or ignore them (ingest policy). There is no "parse without cards" mode.
+
+Requires Rust **1.82+**. Contract history: [CHANGELOG](CHANGELOG.md).
+
+## Contents
+
+- [Components](#components)
+- [Supported languages](#supported-languages)
+- [Quick start](#quick-start)
+- [IR shape](#ir-shape-ir_version-4)
+- [Retrieval cards](#retrieval-cards)
+- [Library usage](#library-usage)
+- [Watch stream (incremental updates)](#watch-stream-incremental-updates)
+- [Resolution](#resolution)
+- [Tests](#tests)
+- [Hardening](#hardening-per-file-caps--size-gate)
+- [License](#license)
 
 ## Components
 
@@ -20,7 +36,9 @@ Parser always emits cards. Cos / domain chooses whether to store, lex, embed, or
 | JavaScript | `javascript` | `.js`, `.jsx`, `.mjs`, `.cjs` | `tree-sitter-javascript` |
 | Python | `python` | `.py`, `.pyi` | `tree-sitter-python` |
 
-Each language is feature-gated. Build only what you need.
+Each language is feature-gated. Build only what you need. The optional `watcher`
+feature enables the `watch` subcommand (`notify` backend); only `rust` is on
+by default.
 
 ## Quick start
 
@@ -80,9 +98,8 @@ span; `missing` markers yield `Warning` diagnostics. Bounded at 64 entries
 per file — further parse issues collapse into one overflow `Warning`
 (`MAX_DIAGNOSTICS_PER_FILE` in `extractors/utils.rs`).
 
-`SymbolIR.is_test` (v3, serde-default false) marks test code so consumers can
-answer "which tests cover this symbol" (TESTED_BY mirrors, CognitiveOS
-`domain_code` idea 2). Detection per language:
+`SymbolIR.is_test` (serde-default false) marks test code so consumers can
+answer "which tests cover this symbol". Detection per language:
 
 - **Rust** — `#[test]` / `#[cfg(test)]` attributes, symbols inside `mod tests`,
   files under a `tests/` dir or named `tests.rs`
@@ -91,17 +108,17 @@ answer "which tests cover this symbol" (TESTED_BY mirrors, CognitiveOS
 - **TS/JS** — `.test.` / `.spec.` filenames, `__tests__/` / `test/` / `tests/` dirs
 
 The parser is stateless: it never removes or versions anything — `is_test` is
-computed per snapshot; all state (mirrors, sweeps, parity) lives in
-`domain_code` on the store side.
+computed per snapshot; all state (mirrors, sweeps, parity) lives in the
+consumer's store.
 
-`ir_version` 4 (fix B): Rust symbol keys are module-qualified — `mod a { fn foo() }`
+Rust symbol keys are module-qualified — `mod a { fn foo() }`
 emits `local_key: "a::foo"` (structs/enums/traits/impl-methods likewise, e.g.
 `a::S::m`), so same-file collisions between modules are impossible and in-file
 resolution is scope-aware (caller's module prefix first, then file root).
-Consumers that persist parsed output should re-ingest once after the bump
-(`domain_code` does this via the `CodeFilePayload.ir_version` guard).
+Consumers that persist parsed output should re-ingest once per `ir_version`
+bump (guard on the field).
 
-`ImportIR.resolved` (fix D, serde-default `None`): filled by the repo-level
+`ImportIR.resolved` (serde-default `None`): filled by the repo-level
 pass in `parse_repo` for TS/JS imports whose specifier maps to a real repo
 file — relative paths (`./` `../`) normalized against the importing file,
 extension probing (`.ts` `.tsx` `.js` `.jsx`, then `/index.*`), and
@@ -111,16 +128,18 @@ the **nearest** `tsconfig.json` on the importing file's ancestor chain
 [Resolution](#resolution). Resolution lives in `imports.rs`
 (`TsConfigSet` / `resolve_import` / `resolve_import_paths`).
 
-See `fixtures/*/simple.ir.json` and `schema/file_parse_ir.v2.json`. Legacy `schema/file_parse_ir.v1.json` remains for old dumps only.
+See `fixtures/*/simple.ir.json` for golden examples of the full contract.
 
 ## Retrieval cards
 
-Mechanical, deterministic text for Lex / optional later ANN — **not** Cos nodes:
+Mechanical, deterministic text for lexical search / optional later embeddings:
 
 - **File card** — path, lang, hash, imports, symbol outline, call histogram, pub names (capped ~2k chars)
 - **Symbol card** — one per symbol: qname, kind, lines, sig, doc snippet, local calls
 
-Cos `domain_code` maps these onto payloads/indexes under ingest policy (store/lex/promote children). Parser does not know about CognitiveOS nodes.
+The consumer maps these onto its own payloads/indexes under its ingest policy
+(store / lex / embed / ignore). The parser knows nothing about the consumer's
+node model.
 
 ## Library usage
 
@@ -242,7 +261,7 @@ Golden fixtures in `fixtures/` are compared structurally on every test run. Vola
 
 ## Hardening: per-file caps + size gate
 
-Hostile inputs are bounded, never silent (code-graph borrow 2):
+Hostile inputs are bounded, never silent:
 
 - `parse_file_bytes` truncates at `MAX_SYMBOLS_PER_FILE = 4096`, `MAX_CALLS_PER_FILE = 8192`, `MAX_IMPORTS_PER_FILE = 2048` and emits one Warning diagnostic per truncated kind (`truncated: {n} symbols (cap 4096)`). Normal files are untouched — parity is guarded by the golden fixtures.
 - `collect_source_files` skips files over `MAX_FILE_BYTES = 4 MiB`; `parse_repo` emits a diagnostic-only `FileParseIR::empty` with a Warning (`skipped: {bytes} > cap …`) per skipped file — never `Err`, never invisible.
