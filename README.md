@@ -10,6 +10,7 @@ Requires Rust **1.82+**. Contract history: [CHANGELOG](CHANGELOG.md).
 
 - [Components](#components)
 - [Supported languages](#supported-languages)
+- [Install](#install)
 - [Quick start](#quick-start)
 - [IR shape](#ir-shape-ir_version-4)
 - [Retrieval cards](#retrieval-cards)
@@ -39,6 +40,23 @@ Requires Rust **1.82+**. Contract history: [CHANGELOG](CHANGELOG.md).
 Each language is feature-gated. Build only what you need. The optional `watcher`
 feature enables the `watch` subcommand (`notify` backend); only `rust` is on
 by default.
+
+## Install
+
+From a checkout:
+
+```bash
+cargo install --path crates/code-parser-cli --features rust,typescript,javascript,python,watcher
+```
+
+Straight from GitHub (no crates.io publication needed):
+
+```bash
+cargo install --git https://github.com/yagaltd/code-parser --features rust,typescript,javascript,python,watcher
+```
+
+The command is `code-parser` (trim the feature list to the languages you
+need; `rust` is on by default, `watcher` enables `watch`).
 
 ## Quick start
 
