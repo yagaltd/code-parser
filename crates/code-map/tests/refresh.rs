@@ -30,7 +30,7 @@ fn refresh_writes_valid_relative_jsonl() {
     let mut paths = Vec::new();
     for line in text.lines() {
         let ir: FileParseIR = serde_json::from_str(line).expect("valid IR line");
-        assert_eq!(ir.ir_version, 4);
+        assert_eq!(ir.ir_version, code_parser_ir::IR_VERSION);
         assert!(ir.path.starts_with("src/"), "repo-relative: {}", ir.path);
         assert!(!ir.retrieval_card.text.is_empty(), "cards always present");
         paths.push(ir.path);

@@ -1,10 +1,29 @@
 # Changelog
 
 IR contract history, newest first. The current contract is
-[`ir_version: 4`](README.md#ir-shape-ir_version-4). Consumers that persist
+[`ir_version: 5`](README.md#ir-shape-ir_version-5). Consumers that persist
 parsed output should re-ingest once per version bump (guard on `ir_version`).
 
 ## 2026-09-29
+
+- **feat(ir): `ir_version` 5 — module-level `docstring` on `FileParseIR`**
+  (additive, `#[serde(default)]` so v4 JSONL maps still load): leading `//!`
+  or `///` in Rust, `/** */` in TS/JS, module docstring in Python, markers
+  stripped. Cards unchanged; indexed by `code-map search`.
+
+- **feat(code-map): search indexes file docstrings + imports, code-aware
+  tokenization** — file units gain the module docstring and import
+  specifier terms; `tokenize` now splits snake_case and camelCase
+  (`est_tokens` → `est`, `tokens`; `FileParseIR` → `file`, `parse`, `ir`).
+  Driven by the E2 eval: engine went from losing to grep on Recall@10
+  (0.792 vs 0.833) to R@5 0.917 / R@10 0.917 / MRR@10 0.712 vs grep
+  0.667 / 0.875 / 0.607.
+
+- **feat(eval): E2 retrieval relevance eval** — `eval/retrieval-queries.jsonl`
+  (24 agent-style queries with gold files, CodeSearchNet-style hand
+  annotation), file-level Recall@5/@10 + MRR@10, grep term-frequency
+  baseline, ratchet floors, wired as
+  `cargo test -p code-map --test retrieval_eval`. See `eval/README.md`.
 
 - **feat(code-map): new crate — query layer over the JSONL map** (M1–M4):
   `refresh` (atomic snapshot),

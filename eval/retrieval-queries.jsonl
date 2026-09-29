@@ -1,0 +1,24 @@
+{"query": "where is the file watcher debounce implemented", "gold": ["crates/code-parser-core/src/watcher.rs"], "kind": "agent", "note": "single-target navigational"}
+{"query": "how are tsconfig path aliases resolved", "gold": ["crates/code-parser-core/src/imports.rs"], "kind": "agent", "note": "resolution logic"}
+{"query": "call graph breadth first search shortest path", "gold": ["crates/code-map/src/graph.rs"], "kind": "agent", "note": "BFS over edges"}
+{"query": "token estimate for retrieval cards", "gold": ["crates/code-parser-ir/src/lib.rs"], "kind": "agent", "note": "est_tokens / build_file_card"}
+{"query": "per file extraction caps hostile file limits", "gold": ["crates/code-parser-core/src/lib.rs"], "kind": "agent", "note": "apply_extraction_caps + truncate_to_cap live in core lib.rs"}
+{"query": "idf weighted search scoring fuzzy", "gold": ["crates/code-map/src/search.rs"], "kind": "agent", "note": "0.6 idf + 0.4 fuzzy"}
+{"query": "learning loop holdout flip guardrails", "gold": ["crates/code-map/src/lexicon.rs"], "kind": "agent", "note": "lexicon learn"}
+{"query": "judge verdict thresholds inline include lead", "gold": ["crates/code-map/src/typesafe.rs"], "kind": "agent", "note": "gate bands"}
+{"query": "atomic snapshot rename temp file", "gold": ["crates/code-map/src/refresh.rs"], "kind": "agent", "note": "atomic swap"}
+{"query": "content hash cache skip unchanged files", "gold": ["crates/code-parser-core/src/cache.rs"], "kind": "agent", "note": "hash cache"}
+{"query": "ir version bump schema migration", "gold": ["crates/code-parser-ir/src/lib.rs"], "kind": "agent", "note": "ir_version contract"}
+{"query": "count code comment blank lines", "gold": ["crates/code-parser-core/src/metrics.rs"], "kind": "agent", "note": "line metrics"}
+{"query": "python functions classes docstrings extraction", "gold": ["crates/code-parser-core/src/extractors/python.rs"], "kind": "agent", "note": "language extractor"}
+{"query": "rust structs enums traits impl extraction", "gold": ["crates/code-parser-core/src/extractors/rust.rs"], "kind": "agent", "note": "language extractor"}
+{"query": "gitignore aware directory walk collect sources", "gold": ["crates/code-parser-core/src/file_collect.rs"], "kind": "agent", "note": "file collection"}
+{"query": "incremental watch snapshot deltas cross file resolution", "gold": ["crates/code-parser-core/src/repo_state.rs"], "kind": "agent", "note": "RepoState"}
+{"query": "parse repo command line interface jsonl output", "gold": ["crates/code-parser-cli/src/main.rs"], "kind": "agent", "note": "CLI surface"}
+{"query": "rust analyzer scip bindings trait dispatch", "gold": ["crates/code-parser-scip/src/lib.rs"], "kind": "agent", "note": "SCIP overlay"}
+{"query": "cross file call resolution qualified name", "gold": ["crates/code-parser-core/src/resolve.rs"], "kind": "agent", "note": "resolution pass"}
+{"query": "language detection from file extension", "gold": ["crates/code-parser-core/src/language.rs"], "kind": "agent", "note": "Language::from_path"}
+{"query": "tree sitter parse errors diagnostics", "gold": ["crates/code-parser-core/src/parser.rs"], "kind": "agent", "note": "parser wrapper"}
+{"query": "watchdog notify file system events", "gold": ["crates/code-parser-core/src/watcher.rs"], "kind": "agent", "note": "conceptual: 'watchdog' appears nowhere — vocabulary must bridge"}
+{"query": "typo tolerant symbol matching", "gold": ["crates/code-map/src/search.rs"], "kind": "agent", "note": "conceptual: 'typo tolerant' is not in the source"}
+{"query": "nearest tsconfig monorepo packages lookup", "gold": ["crates/code-parser-core/src/imports.rs"], "kind": "agent", "note": "monorepo tsconfig discovery"}

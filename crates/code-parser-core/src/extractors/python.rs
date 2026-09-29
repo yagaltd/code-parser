@@ -32,13 +32,14 @@ impl LanguageExtractor for PythonExtractor {
         ctx.diagnostics = utils::collect_error_diagnostics(tree, source);
 
         FileParseIR {
-            ir_version: 4,
+            ir_version: code_parser_ir::IR_VERSION,
             path: file_path.to_string(),
             language: Language::Python.as_str().to_string(),
             content_hash,
             byte_len,
             line_count,
             metrics: code_parser_ir::FileMetrics::default(),
+            docstring: utils::extract_module_doc(source, Language::Python),
             symbols: ctx.symbols,
             calls: ctx.calls,
             imports: ctx.imports,

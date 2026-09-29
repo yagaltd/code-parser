@@ -14,9 +14,10 @@ Requires Rust **1.82+**. Contract history: [CHANGELOG](CHANGELOG.md).
 - [Supported languages](#supported-languages)
 - [Install](#install)
 - [Quick start](#quick-start)
-- [IR shape](#ir-shape-ir_version-4)
+- [IR shape](#ir-shape-ir_version-5)
 - [Retrieval cards](#retrieval-cards)
 - [Code map (`code-map`)](#code-map-code-map)
+- [Evaluation](#evaluation)
 - [Library usage](#library-usage)
 - [Watch stream (incremental updates)](#watch-stream-incremental-updates)
 - [Resolution](#resolution)
@@ -102,18 +103,19 @@ cargo run --release -p code-map -- search "watch debounce" -m code-map.jsonl
 cargo run --release -p code-map -- callers parse_repo -m code-map.jsonl
 ```
 
-## IR shape (`ir_version`: 4)
+## IR shape (`ir_version`: 5)
 
 One JSON object per file. Cards are required fields built after extract+resolve:
 
 ```json
 {
-  "ir_version": 4,
+  "ir_version": 5,
   "path": "src/main.rs",
   "language": "Rust",
   "content_hash": "<blake3>",
   "byte_len": 128,
   "line_count": 10,
+  "docstring": "Module doc, markers stripped (v5; null when absent)",
   "symbols": [{ "local_key": "main", "name": "main", "kind": "Function", "start_line": 1, "is_test": false }],
   "calls":    [{ "caller_local_key": "main", "callee_name": "println", "line": 2 }],
   "imports":  [{ "import_name": "HashMap", "target_module": "std::collections", "kind": "Named" }],
@@ -196,6 +198,9 @@ code-map path main collect_source_files             # shortest path (BFS, hop-ca
 
 - **Search** ranks card/symbol text: rare-query-term weighting (IDF) plus
   fuzzy on symbol names, deterministic tie-breaking (same map → same output).
+  File units additionally index the module docstring and import specifiers
+  (v5), and tokenization is code-aware (`est_tokens` → `est`, `tokens`;
+  `FileParseIR` → `file`, `parse`, `ir`).
 - **Graph** resolves the edges the IR already carries (in-file
   `callee_local_key`, cross-file `callee_file` + exact `qualified_name`) and
   adds a conservative inference tier: a cross-crate call like
@@ -218,6 +223,14 @@ code-map path main collect_source_files             # shortest path (BFS, hop-ca
 Files: key `~/.config/code-parser/typesafe.key` · cache
 `~/.cache/code-parser/{verdicts,trails,usage}.jsonl` · lexicon
 `~/.config/code-parser/learned/gate-lexicon.json`.
+
+## Evaluation
+
+[`eval/`](eval/) holds the retrieval relevance eval (E2): 24 agent-style
+queries with gold files over this repo, scored file-level
+(Recall@5/@10, MRR@10) against a grep baseline — wired as a cargo test
+gate. The eval found and drove the v5 search improvements above. Methodology,
+current numbers, and how to extend: [eval/README.md](eval/README.md).
 
 ## Library usage
 

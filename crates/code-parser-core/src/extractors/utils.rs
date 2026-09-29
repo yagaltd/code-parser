@@ -2,6 +2,8 @@
 use code_parser_ir::{DiagnosticIR, DiagnosticSeverity};
 use tree_sitter::Node;
 
+use crate::language::Language;
+
 /// Upper bound on diagnostics emitted per file (Fix A acceptance: bounded at
 /// 64 entries; further parse issues collapse into one overflow Warning).
 pub const MAX_DIAGNOSTICS_PER_FILE: usize = 64;
@@ -137,4 +139,103 @@ fn push_bounded(diags: &mut Vec<DiagnosticIR>, overflow: &mut usize, diag: Diagn
     } else {
         *overflow += 1;
     }
+}
+
+// ── Module-level docstring (v5) ───────────────────────────────────────────
+
+/// Extract the module-level doc comment, markers stripped.
+///
+/// Grammar-independent scan of the file head — comment markers are regular
+/// enough that walking the tree is unnecessary, and this runs identically
+/// for every language:
+/// - Rust: leading `//!` lines
+/// - TS/JS: leading `/** ... */` block
+/// - Python: first-statement docstring (`"""` or `'''`)
+///
+/// A shebang and blank lines may precede it; any other content first means
+/// the file has no module doc. The leading `/** */` in TS/JS is treated as
+/// the module doc even when it documents the first symbol — either way it
+/// describes the file for retrieval purposes.
+pub fn extract_module_doc(source: &[u8], lang: Language) -> Option<String> {
+    let text = String::from_utf8_lossy(source);
+    let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
+    match lang {
+        Language::Rust => rust_module_doc(text),
+        Language::TypeScript | Language::JavaScript => leading_block_doc(text),
+        Language::Python => leading_python_docstring(text),
+    }
+}
+
+/// Rust file-head docs: leading `//!` (inner) or `///` (outer) lines. The
+/// `///` form is accepted because plenty of real files head with an outer
+/// doc on the first item — as file-level vocabulary it is equivalent for
+/// retrieval either way.
+fn rust_module_doc(text: &str) -> Option<String> {
+    let inner = leading_marker_lines(text, "//!");
+    if inner.is_some() {
+        return inner;
+    }
+    leading_marker_lines(text, "///")
+}
+
+fn skip_shebang_and_blanks(s: &str) -> &str {
+    let mut t = s.trim_start();
+    if let Some(rest) = t.strip_prefix("#!") {
+        t = rest.trim_start();
+    }
+    t
+}
+
+/// Rust `//!` lines at the file head.
+fn leading_marker_lines(text: &str, marker: &str) -> Option<String> {
+    let mut doc: Vec<&str> = Vec::new();
+    for line in skip_shebang_and_blanks(text).lines() {
+        if let Some(rest) = line.strip_prefix(marker) {
+            doc.push(rest.trim());
+        } else {
+            break;
+        }
+    }
+    let joined = doc.join("\n").trim().to_string();
+    (!joined.is_empty()).then_some(joined)
+}
+
+/// TS/JS leading `/** ... */` block, with ` * ` continuation prefixes
+/// stripped. Falls back to consecutive `//` lines (some projects use
+/// `//`-style module headers).
+fn leading_block_doc(text: &str) -> Option<String> {
+    let t = skip_shebang_and_blanks(text);
+    if let Some(body) = t.strip_prefix("/**") {
+        let end = body.find("*/")?;
+        let doc: Vec<String> = body[..end]
+            .lines()
+            .map(|l| l.trim().trim_start_matches('*').trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect();
+        let joined = doc.join("\n").trim().to_string();
+        return (!joined.is_empty()).then_some(joined);
+    }
+    leading_marker_lines(t, "//")
+}
+
+/// Python module docstring: the first statement, after shebang, blanks, and
+/// leading `#` comments.
+fn leading_python_docstring(text: &str) -> Option<String> {
+    let mut t = skip_shebang_and_blanks(text);
+    while let Some(line_end) = t.find('\n') {
+        let line = t[..line_end].trim();
+        if line.is_empty() || line.starts_with('#') {
+            t = t[line_end + 1..].trim_start();
+        } else {
+            break;
+        }
+    }
+    for q in ["\"\"\"", "'''"] {
+        if let Some(body) = t.strip_prefix(q) {
+            let end = body.find(q)?;
+            let doc = body[..end].trim();
+            return (!doc.is_empty()).then_some(doc.to_string());
+        }
+    }
+    None
 }

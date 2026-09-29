@@ -260,7 +260,7 @@ pub fn parse_file_bytes(path: &str, source: &[u8]) -> Result<FileParseIR, anyhow
     ir.metrics = metrics::compute(&tree, source, metrics::comment_kinds(&ir.language));
 
     // A1: always build retrieval cards after extract+resolve.
-    ir.ir_version = 4;
+    ir.ir_version = code_parser_ir::IR_VERSION;
 
     // Borrow 2: per-file caps — truncate + Warning diagnostics before cards,
     // so card building and downstream graph ingest stay bounded.

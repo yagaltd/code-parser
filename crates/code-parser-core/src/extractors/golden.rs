@@ -24,7 +24,7 @@ use code_parser_ir::FileParseIR;
 /// - `retrieval_card` / `symbol_cards` text (hash-stripped rebuild)
 pub fn normalize_for_compare(ir: &mut FileParseIR) {
     ir.content_hash = String::new();
-    ir.ir_version = 4;
+    ir.ir_version = code_parser_ir::IR_VERSION;
     for sym in &mut ir.symbols {
         sym.start_byte = None;
         sym.end_byte = None;
@@ -46,9 +46,10 @@ pub fn normalize_for_compare(ir: &mut FileParseIR) {
 /// Prefer calling **after** [`normalize_for_compare`] so v2 card invariants hold
 /// (extractors may leave empty placeholder cards until rebuild).
 pub fn validate_schema(ir: &FileParseIR) -> Result<(), String> {
-    if ir.ir_version != 1 && ir.ir_version != 2 && ir.ir_version != 3 && ir.ir_version != 4 {
+    if !(1..=code_parser_ir::IR_VERSION).contains(&ir.ir_version) {
         return Err(format!(
-            "ir_version must be 1, 2, 3 or 4, got {}",
+            "ir_version must be 1..={}, got {}",
+            code_parser_ir::IR_VERSION,
             ir.ir_version
         ));
     }

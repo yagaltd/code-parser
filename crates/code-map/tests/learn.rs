@@ -158,12 +158,16 @@ fn boost_reorders_search_results() {
         ir(
             "src/a_module.rs",
             "alpha handling module",
-            &[("alpha_weak", "fn")],
+            // Symbol names deliberately avoid the query term — this test
+            // isolates card-term ranking + the lexicon flip. (Since code-aware
+            // tokenization, a symbol named `alpha_*` would IDF-match `alpha`
+            // directly and outrank any card boost.)
+            &[("weak_handler", "fn")],
         ),
         ir(
             "src/z_module.rs",
             "alpha handling module ingest pipeline",
-            &[("alpha_strong", "fn")],
+            &[("strong_pipeline", "fn")],
         ),
     ];
     let mut lex = Lexicon::default();

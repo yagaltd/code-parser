@@ -6,9 +6,10 @@
 //!   code-map callees <SYMBOL> [-m MAP]
 //!   code-map path <FROM> <TO> [--max-hops N] [-m MAP]
 
+use std::io::Read;
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
 use code_map::graph::Graph;

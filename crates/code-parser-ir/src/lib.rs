@@ -116,8 +116,14 @@ fn kind_order(kind: &SymbolKind) -> u8 {
 
 // ── FileParseIR ──────────────────────────────────────────────────────────
 
+/// Canonical IR contract version. Bumped on every emitted-shape change;
+/// see CHANGELOG for the migration history. Consumers that persist parsed
+/// output should guard on this and re-ingest on a bump.
+pub const IR_VERSION: u32 = 5;
+
 /// Top-level parse result for a single source file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+
 pub struct FileParseIR {
     pub ir_version: u32,
     /// Repository-relative path, e.g. `src/main.rs`.
@@ -132,6 +138,11 @@ pub struct FileParseIR {
     pub line_count: u32,
     /// Per-file line metrics (code/comment/blank) — tokei-style pass.
     pub metrics: FileMetrics,
+    /// Module-level doc comment text (leading `//!` in Rust, `/** */` in
+    /// TS/JS, module docstring in Python — markers stripped). `None` when
+    /// the file has none. Indexed by `code-map search`; cards unchanged.
+    #[serde(default)]
+    pub docstring: Option<String>,
     pub symbols: Vec<SymbolIR>,
     pub calls: Vec<CallIR>,
     pub imports: Vec<ImportIR>,
@@ -298,13 +309,14 @@ impl FileParseIR {
     /// Create a minimal IR for a file that failed to parse (diagnostics only).
     pub fn empty(path: impl Into<String>, language: impl Into<String>) -> Self {
         Self {
-            ir_version: 4,
+            ir_version: IR_VERSION,
             path: path.into(),
             language: language.into(),
             content_hash: String::new(),
             byte_len: 0,
             line_count: 0,
             metrics: FileMetrics::default(),
+            docstring: None,
             symbols: Vec::new(),
             calls: Vec::new(),
             imports: Vec::new(),
@@ -581,6 +593,7 @@ mod tests {
             byte_len: 500,
             line_count: 42,
             metrics: FileMetrics::default(),
+            docstring: None,
             symbols: vec![
                 SymbolIR {
                     local_key: "main".into(),

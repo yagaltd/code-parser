@@ -46,17 +46,60 @@ struct Unit {
     est_tokens: u32,
 }
 
+/// Code-aware tokenization: split on non-alphanumerics, then split
+/// identifiers on snake_case and camelCase boundaries (`est_tokens` →
+/// `est`, `tokens`; `FileParseIR` → `file`, `parse`, `ir`). Query and unit
+/// terms go through the same function, so matching stays symmetric and
+/// deterministic.
 pub fn tokenize(text: &str) -> Vec<String> {
     text.split(|c: char| !c.is_alphanumeric() && c != '_')
         .filter(|s| !s.is_empty())
-        .map(|s| s.to_lowercase())
+        .flat_map(split_identifier)
         .collect()
+}
+
+/// Split one identifier into lowercase fragments on `_`, snake_case and
+/// camelCase boundaries (including uppercase-run boundaries: `XMLHttp` →
+/// `xml`, `http`).
+fn split_identifier(part: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for piece in part.split('_') {
+        if piece.is_empty() {
+            continue;
+        }
+        let chars: Vec<char> = piece.chars().collect();
+        let mut start = 0usize;
+        for i in 1..chars.len() {
+            let (prev, cur) = (chars[i - 1], chars[i]);
+            let boundary = (prev.is_lowercase() && cur.is_uppercase())
+                || (prev.is_uppercase()
+                    && cur.is_lowercase()
+                    && i > start + 1
+                    && chars[i - 2].is_uppercase());
+            if boundary {
+                out.push(chars[start..i].iter().collect::<String>().to_lowercase());
+                start = i;
+            }
+        }
+        out.push(chars[start..].iter().collect::<String>().to_lowercase());
+    }
+    out
 }
 
 fn units(irs: &[FileParseIR]) -> Vec<Unit> {
     let mut out = Vec::new();
     for ir in irs {
         let mut file_terms = tokenize(&ir.retrieval_card.text);
+        // v5: the file unit also indexes the module docstring and import
+        // specifiers — the vocabulary an agent searches with often lives
+        // there, not in symbol names.
+        if let Some(doc) = &ir.docstring {
+            file_terms.extend(tokenize(doc));
+        }
+        for imp in &ir.imports {
+            file_terms.extend(tokenize(&imp.import_name));
+            file_terms.extend(tokenize(&imp.target_module));
+        }
         out.push(Unit {
             path: ir.path.clone(),
             line: 0,
