@@ -25,6 +25,7 @@ path = "src/main.rs"
 
 [features]
 default = ["rust"]
+all = ["rust", "typescript", "javascript", "python", "watcher"]
 rust = ["code-parser-core/rust"]
 typescript = ["code-parser-core/typescript"]
 python = ["code-parser-core/python"]

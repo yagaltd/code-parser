@@ -46,23 +46,22 @@ by default.
 From a checkout:
 
 ```bash
-cargo install --path crates/code-parser-cli --features rust,typescript,javascript,python,watcher
+cargo install --path crates/code-parser-cli --features all
 ```
 
-Straight from GitHub (no crates.io publication needed):
+From GitHub:
 
 ```bash
-cargo install --git https://github.com/yagaltd/code-parser --features rust,typescript,javascript,python,watcher
+cargo install --git https://github.com/yagaltd/code-parser code-parser-cli --features all
 ```
 
-The command is `code-parser` (trim the feature list to the languages you
-need; `rust` is on by default, `watcher` enables `watch`).
+The command is `code-parser`. `--features all` = Rust + TypeScript + JavaScript + Python + watcher; default is Rust only.
 
 ## Quick start
 
 ```bash
-# Build with all languages
-cargo build --features rust,typescript,javascript,python
+# Build with everything
+cargo build --features all
 
 # Parse a single file → JSON (includes retrieval_card + symbol_cards)
 cargo run -- parse src/main.rs --json
@@ -75,7 +74,7 @@ cargo run -- parse-repo . --languages rust --jsonl
 
 # Watch a repo: initial snapshot, then incremental JSONL events
 # (requires --features watcher)
-cargo run --features rust,typescript,javascript,python,watcher -- watch . --emit jsonl
+cargo run --features all -- watch . --emit jsonl
 
 # Validate a file parses without errors
 cargo run -- check src/main.rs
