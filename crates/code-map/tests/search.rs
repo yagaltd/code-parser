@@ -40,9 +40,17 @@ fn ir(path: &str, card_text: &str, syms: &[(&str, &str)]) -> FileParseIR {
 #[test]
 fn rare_term_outranks_common_term() {
     let irs = vec![
-        ir("src/a.rs", "parse repo files with the parser", &[("parse_a", "fn")]),
+        ir(
+            "src/a.rs",
+            "parse repo files with the parser",
+            &[("parse_a", "fn")],
+        ),
         ir("src/b.rs", "parse json config", &[("parse_b", "fn")]),
-        ir("src/c.rs", "ingest walrus sightings into the store", &[("ingest_c", "fn")]),
+        ir(
+            "src/c.rs",
+            "ingest walrus sightings into the store",
+            &[("ingest_c", "fn")],
+        ),
     ];
     let hits = search::run(&irs, "walrus parse", 10).unwrap();
     assert!(!hits.is_empty());
@@ -75,8 +83,16 @@ fn regex_mode_filters_and_fixes_score() {
 #[test]
 fn fuzzy_recovers_typo_in_symbol_name() {
     let irs = vec![
-        ir("src/p.rs", "repository parsing utilities", &[("parse_repo", "fn parse_repo()")]),
-        ir("src/q.rs", "unrelated module", &[("render_ui", "fn render_ui()")]),
+        ir(
+            "src/p.rs",
+            "repository parsing utilities",
+            &[("parse_repo", "fn parse_repo()")],
+        ),
+        ir(
+            "src/q.rs",
+            "unrelated module",
+            &[("render_ui", "fn render_ui()")],
+        ),
     ];
     let hits = search::run(&irs, "parsrepo", 3).unwrap();
     assert!(
@@ -90,7 +106,11 @@ fn fuzzy_recovers_typo_in_symbol_name() {
 fn deterministic_output() {
     let irs = vec![
         ir("src/a.rs", "watch debounce events", &[("watch_a", "fn")]),
-        ir("src/b.rs", "watch debounce events here too", &[("watch_b", "fn")]),
+        ir(
+            "src/b.rs",
+            "watch debounce events here too",
+            &[("watch_b", "fn")],
+        ),
     ];
     let h1 = search::run(&irs, "watch debounce", 20).unwrap();
     let h2 = search::run(&irs, "watch debounce", 20).unwrap();
@@ -102,12 +122,17 @@ fn deterministic_output() {
 
 #[test]
 fn tokens_est_is_sum_of_hits() {
-    let irs = vec![ir("src/a.rs", "watch debounce events", &[("watch_a", "fn")])];
+    let irs = vec![ir(
+        "src/a.rs",
+        "watch debounce events",
+        &[("watch_a", "fn")],
+    )];
     let hits = search::run(&irs, "watch debounce", 20).unwrap();
     let sum: u32 = hits.iter().map(|h| h.tokens_est).sum();
     assert!(sum > 0);
     // The CLI's tokens_est is this sum — same field, no drift.
-    let json = serde_json::to_string(&serde_json::json!({ "results": hits, "tokens_est": sum })).unwrap();
+    let json =
+        serde_json::to_string(&serde_json::json!({ "results": hits, "tokens_est": sum })).unwrap();
     assert!(json.contains("\"tokens_est\""));
 }
 

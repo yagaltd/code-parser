@@ -6,10 +6,9 @@
 //!   code-map callees <SYMBOL> [-m MAP]
 //!   code-map path <FROM> <TO> [--max-hops N] [-m MAP]
 
-use std::io::Read;
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use code_map::graph::Graph;
@@ -130,12 +129,17 @@ fn main() -> Result<()> {
                 0 => println!("no matches for '{symbol}'"),
                 1 => print_edges(&g, "callers", matches[0], |n| g.callers(n)),
                 _ => {
-                    println!("note: '{symbol}' is ambiguous ({} matches) — showing all:", matches.len());
+                    println!(
+                        "note: '{symbol}' is ambiguous ({} matches) — showing all:",
+                        matches.len()
+                    );
                     for &m in &matches {
                         println!(
                             "# {} {} L{}-{}",
-                            g.nodes[m].path, g.nodes[m].qualified_name,
-                            g.nodes[m].start_line, g.nodes[m].end_line
+                            g.nodes[m].path,
+                            g.nodes[m].qualified_name,
+                            g.nodes[m].start_line,
+                            g.nodes[m].end_line
                         );
                         print_edges(&g, "callers", m, |n| g.callers(n));
                     }
@@ -149,23 +153,24 @@ fn main() -> Result<()> {
                 0 => println!("no matches for '{symbol}'"),
                 1 => print_edges(&g, "callees", matches[0], |n| g.callees(n)),
                 _ => {
-                    println!("note: '{symbol}' is ambiguous ({} matches) — showing all:", matches.len());
+                    println!(
+                        "note: '{symbol}' is ambiguous ({} matches) — showing all:",
+                        matches.len()
+                    );
                     for &m in &matches {
                         println!(
                             "# {} {} L{}-{}",
-                            g.nodes[m].path, g.nodes[m].qualified_name,
-                            g.nodes[m].start_line, g.nodes[m].end_line
+                            g.nodes[m].path,
+                            g.nodes[m].qualified_name,
+                            g.nodes[m].start_line,
+                            g.nodes[m].end_line
                         );
                         print_edges(&g, "callees", m, |n| g.callees(n));
                     }
                 }
             }
         }
-        Command::Path {
-            from,
-            to,
-            max_hops,
-        } => {
+        Command::Path { from, to, max_hops } => {
             let g = Graph::load(&cli.map)?;
             let a = unique(&g, &from)?;
             let b = unique(&g, &to)?;
@@ -174,7 +179,10 @@ fn main() -> Result<()> {
                 return Ok(());
             };
             if path.len() == 1 {
-                println!("path found (0 hops): {} {}", g.nodes[a].path, g.nodes[a].qualified_name);
+                println!(
+                    "path found (0 hops): {} {}",
+                    g.nodes[a].path, g.nodes[a].qualified_name
+                );
                 return Ok(());
             }
             println!("path found ({} hops):", path.len() - 1);
@@ -182,7 +190,10 @@ fn main() -> Result<()> {
                 let (c, d) = (w[0], w[1]);
                 println!(
                     "  {}:{}  {} → {}",
-                    g.nodes[c].path, g.call_line(c, d), g.nodes[c].qualified_name, g.nodes[d].qualified_name
+                    g.nodes[c].path,
+                    g.call_line(c, d),
+                    g.nodes[c].qualified_name,
+                    g.nodes[d].qualified_name
                 );
             }
         }
@@ -206,10 +217,7 @@ fn main() -> Result<()> {
                 );
             } else {
                 for h in &hits {
-                    println!(
-                        "{:.3} {}:{} {} {}",
-                        h.score, h.path, h.line, h.kind, h.name
-                    );
+                    println!("{:.3} {}:{} {} {}", h.score, h.path, h.line, h.kind, h.name);
                     if cards {
                         println!("  {}", h.card.replace('\n', "\n  "));
                     }
@@ -228,8 +236,9 @@ fn main() -> Result<()> {
                 std::io::stdin().read_to_string(&mut text)?;
                 let v: serde_json::Value = serde_json::from_str(&text)
                     .context("stdin is not JSON — pipe `code-map search --json` output")?;
-                let candidates: Vec<ts::Candidate> = serde_json::from_value(v["results"].clone())
-                    .context("stdin JSON has no \"results\" array")?;
+                let candidates: Vec<ts::Candidate> =
+                    serde_json::from_value(v["results"].clone())
+                        .context("stdin JSON has no \"results\" array")?;
                 let input = ts::GateInput { query, candidates };
                 let key = ts::load_key(key_file.as_deref())?;
                 let gated = ts::gate(input, &key, ts::post, true)?;
@@ -244,7 +253,10 @@ fn main() -> Result<()> {
                             })
                         })
                         .collect();
-                    println!("{}", serde_json::to_string(&serde_json::json!({ "results": results }))?);
+                    println!(
+                        "{}",
+                        serde_json::to_string(&serde_json::json!({ "results": results }))?
+                    );
                 } else {
                     for (c, v, verdict) in &gated {
                         println!("{:.3} {:8} {}:{} {}", v, verdict, c.path, c.line, c.name);
@@ -255,7 +267,9 @@ fn main() -> Result<()> {
             #[cfg(not(feature = "typesafe"))]
             {
                 let _ = (query, json, key_file);
-                anyhow::bail!("gate requires the 'typesafe' feature: cargo build --features typesafe")
+                anyhow::bail!(
+                    "gate requires the 'typesafe' feature: cargo build --features typesafe"
+                )
             }
         }
         Command::Typesafe { cmd } => {
@@ -268,7 +282,9 @@ fn main() -> Result<()> {
             #[cfg(not(feature = "typesafe"))]
             {
                 let _ = cmd;
-                anyhow::bail!("typesafe requires the 'typesafe' feature: cargo build --features typesafe")
+                anyhow::bail!(
+                    "typesafe requires the 'typesafe' feature: cargo build --features typesafe"
+                )
             }
         }
         Command::Mark { query, paths } => {
@@ -315,12 +331,7 @@ fn unique(g: &Graph, name: &str) -> Result<usize> {
     }
 }
 
-fn print_edges(
-    g: &Graph,
-    dir_label: &str,
-    node: usize,
-    f: impl Fn(usize) -> Vec<(usize, u32)>,
-) {
+fn print_edges(g: &Graph, dir_label: &str, node: usize, f: impl Fn(usize) -> Vec<(usize, u32)>) {
     let mut edges = f(node);
     edges.sort();
     if edges.is_empty() {
@@ -340,7 +351,11 @@ fn print_edges(
             ),
             _ => println!(
                 "  {}:{}  {} → {}{}",
-                g.nodes[node].path, line, g.nodes[node].qualified_name, g.nodes[other].qualified_name, mark
+                g.nodes[node].path,
+                line,
+                g.nodes[node].qualified_name,
+                g.nodes[other].qualified_name,
+                mark
             ),
         }
     }

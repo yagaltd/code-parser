@@ -27,8 +27,15 @@ fn write_corpus(label: &str, groups: usize, term: &str, used_of: usize) -> (Path
         );
         // Every query gets a usage row — an empty "used" list is explicit
         // negative feedback, whereas a missing row means "unknown".
-        let used: Vec<String> = if i < used_of { vec![path.clone()] } else { vec![] };
-        u += &format!("{{\"query\":\"q{i}\",\"used\":{}}}\n", serde_json::to_string(&used).unwrap());
+        let used: Vec<String> = if i < used_of {
+            vec![path.clone()]
+        } else {
+            vec![]
+        };
+        u += &format!(
+            "{{\"query\":\"q{i}\",\"used\":{}}}\n",
+            serde_json::to_string(&used).unwrap()
+        );
     }
     std::fs::write(&trails, t).unwrap();
     std::fs::write(&usage, u).unwrap();
@@ -41,7 +48,11 @@ fn promote_demote_and_neutral_terms() {
     // samples (≥ min_samples), holdout 3/5 ≥ 0.5 → promote.
     let (trails, usage) = write_corpus("promote", 12, "hot", 10);
     let lex = lexicon::learn(&trails, &usage, 0.4, 5).unwrap();
-    assert!(lex.promote.contains_key("hot"), "promote: {:?}", lex.promote);
+    assert!(
+        lex.promote.contains_key("hot"),
+        "promote: {:?}",
+        lex.promote
+    );
 
     // "cold": 12 groups, 0 used → precision 0.0 ≤ 0.3 → demote.
     let (trails, usage) = write_corpus("demote", 12, "cold", 0);
@@ -72,7 +83,10 @@ fn holdout_flip_drops_rule() {
         );
         // Explicit feedback on every query: used for q00–q05, empty after.
         let used: Vec<String> = if i < 6 { vec![path.clone()] } else { vec![] };
-        u += &format!("{{\"query\":\"q{i:02}\",\"used\":{}}}\n", serde_json::to_string(&used).unwrap());
+        u += &format!(
+            "{{\"query\":\"q{i:02}\",\"used\":{}}}\n",
+            serde_json::to_string(&used).unwrap()
+        );
     }
     std::fs::write(&trails, t).unwrap();
     std::fs::write(&usage, u).unwrap();
@@ -99,7 +113,9 @@ fn lexicon_json_roundtrip_and_boost() {
     assert!(loaded.boost_for(&["bad".into()]) < 0.0);
     assert_eq!(loaded.boost_for(&["unmeasured".into()]), 0.0);
     assert!(loaded.boost_for(&["good".into(), "bad".into()]) == 0.0); // clamps to 0
-    assert!(Lexicon::load(&temp("roundtrip").join("missing.json")).unwrap().is_none());
+    assert!(Lexicon::load(&temp("roundtrip").join("missing.json"))
+        .unwrap()
+        .is_none());
 }
 
 #[test]
@@ -109,21 +125,46 @@ fn boost_reorders_search_results() {
     fn ir(path: &str, card: &str, syms: &[(&str, &str)]) -> FileParseIR {
         let mut ir = FileParseIR::empty(path, "Rust");
         ir.content_hash = path.into();
-        ir.retrieval_card = RetrievalCard { card_version: 1, est_tokens: 8, text: card.into() };
+        ir.retrieval_card = RetrievalCard {
+            card_version: 1,
+            est_tokens: 8,
+            text: card.into(),
+        };
         for &(qn, sig) in syms {
             ir.symbols.push(SymbolIR {
-                local_key: qn.into(), name: qn.into(), qualified_name: qn.into(),
-                kind: SymbolKind::Function, start_line: 1, end_line: 2,
-                start_byte: None, end_byte: None, signature: Some(sig.into()),
-                parameters: vec![], return_type: None, docstring: None, is_test: false,
+                local_key: qn.into(),
+                name: qn.into(),
+                qualified_name: qn.into(),
+                kind: SymbolKind::Function,
+                start_line: 1,
+                end_line: 2,
+                start_byte: None,
+                end_byte: None,
+                signature: Some(sig.into()),
+                parameters: vec![],
+                return_type: None,
+                docstring: None,
+                is_test: false,
             });
-            ir.symbol_cards.push(RetrievalCard { card_version: 1, est_tokens: 4, text: format!("SYM {qn}") });
+            ir.symbol_cards.push(RetrievalCard {
+                card_version: 1,
+                est_tokens: 4,
+                text: format!("SYM {qn}"),
+            });
         }
         ir
     }
     let irs = vec![
-        ir("src/a_module.rs", "alpha handling module", &[("alpha_weak", "fn")]),
-        ir("src/z_module.rs", "alpha handling module ingest pipeline", &[("alpha_strong", "fn")]),
+        ir(
+            "src/a_module.rs",
+            "alpha handling module",
+            &[("alpha_weak", "fn")],
+        ),
+        ir(
+            "src/z_module.rs",
+            "alpha handling module ingest pipeline",
+            &[("alpha_strong", "fn")],
+        ),
     ];
     let mut lex = Lexicon::default();
     lex.promote.insert("ingest".into(), 1.0);
@@ -148,7 +189,11 @@ fn mark_and_join_normalize_query_text() {
     )
     .unwrap();
     // Messy but equivalent query text — normalization must join it.
-    std::fs::write(&usage, "{\"query\":\"  watch   debounce \",\"used\":[\"src/w.rs\"]}\n").unwrap();
+    std::fs::write(
+        &usage,
+        "{\"query\":\"  watch   debounce \",\"used\":[\"src/w.rs\"]}\n",
+    )
+    .unwrap();
 
     let lex = lexicon::learn(&trails, &usage, 0.4, 1).unwrap();
     // min_samples=1, precision 1.0, holdout empty → promoted.

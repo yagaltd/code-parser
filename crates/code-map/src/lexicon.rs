@@ -60,7 +60,10 @@ fn append_jsonl(path: &Path, value: &serde_json::Value) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     writeln!(f, "{value}")?;
     Ok(())
 }
@@ -69,7 +72,10 @@ fn append_jsonl(path: &Path, value: &serde_json::Value) -> Result<()> {
 pub fn norm_query(q: &str) -> String {
     let mut parts: Vec<String> = Vec::new();
     for w in q.split_whitespace() {
-        for t in w.to_lowercase().split(|c: char| !c.is_alphanumeric() && c != '_') {
+        for t in w
+            .to_lowercase()
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
+        {
             if !t.is_empty() {
                 parts.push(t.to_string());
             }
@@ -81,7 +87,11 @@ pub fn norm_query(q: &str) -> String {
 // ── Trail (gate → disk) ──────────────────────────────────────────────────
 
 /// Record one fresh gate run. `candidates` = (path, card/name terms).
-pub fn append_trail(query: &str, candidates: &[(String, Vec<String>)], values: &[f64]) -> Result<()> {
+pub fn append_trail(
+    query: &str,
+    candidates: &[(String, Vec<String>)],
+    values: &[f64],
+) -> Result<()> {
     let row = json!({
         "query": query,
         "candidates": candidates
@@ -97,10 +107,7 @@ pub fn append_trail(query: &str, candidates: &[(String, Vec<String>)], values: &
 
 /// Record which candidates the consumer actually used for a query.
 pub fn mark_used(query: &str, paths: &[String]) -> Result<()> {
-    append_jsonl(
-        &usage_path(),
-        &json!({"query": query, "used": paths}),
-    )
+    append_jsonl(&usage_path(), &json!({"query": query, "used": paths}))
 }
 
 // ── Lexicon ──────────────────────────────────────────────────────────────
@@ -122,7 +129,8 @@ impl Lexicon {
         let Ok(text) = std::fs::read_to_string(path) else {
             return Ok(None);
         };
-        let lex = serde_json::from_str(&text).with_context(|| format!("bad lexicon {}", path.display()))?;
+        let lex = serde_json::from_str(&text)
+            .with_context(|| format!("bad lexicon {}", path.display()))?;
         Ok(Some(lex))
     }
 
@@ -183,7 +191,12 @@ struct Group {
 
 /// Fold trails × usage into a lexicon. Pure given the file contents —
 /// the CLI resolves paths, tests pass temp files.
-pub fn learn(trails: &Path, usage: &Path, holdout_frac: f64, min_samples: usize) -> Result<Lexicon> {
+pub fn learn(
+    trails: &Path,
+    usage: &Path,
+    holdout_frac: f64,
+    min_samples: usize,
+) -> Result<Lexicon> {
     // Load + join by normalized query.
     let mut usage_by_query: HashMap<String, Vec<String>> = HashMap::new();
     for line in read_lines(usage)? {
@@ -221,7 +234,12 @@ pub fn learn(trails: &Path, usage: &Path, holdout_frac: f64, min_samples: usize)
             .first()
             .map(|c| c.0.clone())
             .unwrap_or_default()
-            .cmp(&b.candidates.first().map(|c| c.0.clone()).unwrap_or_default())
+            .cmp(
+                &b.candidates
+                    .first()
+                    .map(|c| c.0.clone())
+                    .unwrap_or_default(),
+            )
     });
     let holdout_n = if groups.len() >= 2 {
         (((groups.len() as f64) * holdout_frac).ceil() as usize).min(groups.len() - 1)

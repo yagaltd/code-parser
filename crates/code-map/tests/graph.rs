@@ -54,7 +54,10 @@ fn callees_follow_local_key() {
     assert_eq!(callee_set(&g, setup), vec!["main"]);
     let main = one(&g, "main");
     // IR-resolved + inferred (globally-unique `parse_repo`).
-    assert_eq!(callee_set(&g, main), vec!["other::parse_repo", "util::helper"]);
+    assert_eq!(
+        callee_set(&g, main),
+        vec!["other::parse_repo", "util::helper"]
+    );
 }
 
 #[test]
@@ -72,7 +75,10 @@ fn bare_name_lookup_is_ambiguous() {
     let mut m = g.resolve("helper");
     m.sort();
     assert_eq!(m.len(), 2);
-    let mut names: Vec<&str> = m.iter().map(|&i| g.nodes[i].qualified_name.as_str()).collect();
+    let mut names: Vec<&str> = m
+        .iter()
+        .map(|&i| g.nodes[i].qualified_name.as_str())
+        .collect();
     names.sort();
     assert_eq!(names, vec!["other::helper", "util::helper"]);
 }
@@ -105,7 +111,10 @@ fn shortest_path_two_hops() {
     let setup = one(&g, "setup");
     let helper = one(&g, "util::helper");
     let path = g.shortest_path(setup, helper, 8).expect("reachable");
-    let qn: Vec<&str> = path.iter().map(|&i| g.nodes[i].qualified_name.as_str()).collect();
+    let qn: Vec<&str> = path
+        .iter()
+        .map(|&i| g.nodes[i].qualified_name.as_str())
+        .collect();
     assert_eq!(qn, vec!["setup", "main", "util::helper"]);
 }
 

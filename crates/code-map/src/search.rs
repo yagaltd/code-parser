@@ -113,7 +113,12 @@ fn units(irs: &[FileParseIR]) -> Vec<Unit> {
 }
 
 /// IDF-weighted term overlap: rare query terms weigh more than common ones.
-fn idf_score(unit_terms: &[String], query_terms: &[String], df: &HashMap<String, usize>, total: usize) -> f64 {
+fn idf_score(
+    unit_terms: &[String],
+    query_terms: &[String],
+    df: &HashMap<String, usize>,
+    total: usize,
+) -> f64 {
     let idf = |t: &str| (1.0 + total as f64 / (1.0 + df.get(t).copied().unwrap_or(0) as f64)).ln();
     let denom: f64 = query_terms.iter().map(|t| idf(t)).sum();
     if denom <= 0.0 {

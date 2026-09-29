@@ -277,7 +277,11 @@ fn self_callee(
     }
     // Unique bare-name fallback: `util::helper` not found as qualified_name in
     // the target file, but exactly one symbol named `helper` lives there.
-    let bare = call.callee_name.rsplit("::").next().unwrap_or(&call.callee_name);
+    let bare = call
+        .callee_name
+        .rsplit("::")
+        .next()
+        .unwrap_or(&call.callee_name);
     let matches: Vec<usize> = nodes
         .iter()
         .enumerate()

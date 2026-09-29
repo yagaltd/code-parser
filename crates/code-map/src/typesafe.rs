@@ -137,7 +137,10 @@ pub fn post(payload: &Value, key: &str) -> Result<Value> {
                     delay *= 2;
                     continue;
                 }
-                bail!("TypeSafe API error (HTTP {status}): {}", truncate(&body, 300));
+                bail!(
+                    "TypeSafe API error (HTTP {status}): {}",
+                    truncate(&body, 300)
+                );
             }
             Err(e) => bail!("TypeSafe API request failed: {e}"),
         };
@@ -289,7 +292,10 @@ fn cache_store(key: &str, answers: &BTreeMap<String, f64>) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     writeln!(f, "{}", json!({"key": key, "answers": answers}))?;
     Ok(())
 }

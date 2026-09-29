@@ -136,14 +136,10 @@ pub fn parse_repo(
 ) -> Result<Vec<ParseResult>, anyhow::Error> {
     let full_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     let root_str = full_root.to_string_lossy().to_string();
-    let languages = languages.unwrap_or_else(|| {
-        vec![
-            Language::Rust,
-            Language::TypeScript,
-            Language::JavaScript,
-            Language::Python,
-        ]
-    });
+    let languages = languages
+        .unwrap_or_else(Language::enabled)
+        .into_iter()
+        .collect::<Vec<_>>();
 
     let (paths, skipped) = file_collect::collect_source_files(&root_str, &languages)
         .context("Failed to collect source files")?;
@@ -311,6 +307,39 @@ pub fn parse_file_cached(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `parse_repo` with `None` languages defaults to the grammars
+    /// compiled in — a rust-only build silently skips .ts/.py files
+    /// instead of erroring on them. Works under any feature combination.
+    #[test]
+    fn parse_repo_default_languages_are_enabled_only() {
+        let dir = std::env::temp_dir().join(format!("cp_default_langs_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.rs"), "fn a() {}").unwrap();
+        std::fs::write(dir.join("b.ts"), "function b(): void {}").unwrap();
+        std::fs::write(dir.join("c.py"), "def c():").unwrap();
+
+        let results = parse_repo(&dir, None).unwrap();
+
+        let enabled = Language::enabled();
+        for r in &results {
+            assert!(r.errors.is_empty(), "unexpected errors: {:?}", r.errors);
+            assert!(
+                enabled.iter().any(|l| l.as_str() == r.ir.language),
+                "parsed {} ({}) but grammar not enabled in this build",
+                r.ir.path,
+                r.ir.language
+            );
+        }
+        if cfg!(feature = "rust") {
+            assert!(
+                results.iter().any(|r| r.ir.path.ends_with("a.rs")),
+                "enabled rust grammar must still parse a.rs"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[cfg(feature = "rust")]
     fn parse_rust(source: &[u8], path: &str) -> FileParseIR {

@@ -60,18 +60,14 @@ fn payload_caps_candidates_and_cards() {
     let p = ts::build_payload(&input);
     assert_eq!(p["state"]["candidates"].as_array().unwrap().len(), 20); // MAX_CANDIDATES
     assert!(p["questions"].as_object().unwrap().len() == 40); // q+scope × 20
-    // Long cards are trimmed.
+                                                              // Long cards are trimmed.
     let mut long = cand("src/long.rs", "h");
     long.card = "x".repeat(10_000);
     let p = ts::build_payload(&ts::GateInput {
         query: "q".into(),
         candidates: vec![long],
     });
-    assert!(p["state"]["candidates"][0]["card"]
-        .as_str()
-        .unwrap()
-        .len()
-        <= 2000);
+    assert!(p["state"]["candidates"][0]["card"].as_str().unwrap().len() <= 2000);
 }
 
 #[test]
@@ -129,7 +125,11 @@ fn gate_runs_offline_with_mock_evaluator() {
     }
     let input = ts::GateInput {
         query: "telemetry".into(),
-        candidates: vec![cand("src/a.rs", "h1"), cand("src/b.rs", "h2"), cand("src/c.rs", "h3")],
+        candidates: vec![
+            cand("src/a.rs", "h1"),
+            cand("src/b.rs", "h2"),
+            cand("src/c.rs", "h3"),
+        ],
     };
     let out = ts::gate(input, "k", mock, false).unwrap();
     let verdicts: Vec<&str> = out.iter().map(|(_, _, v)| *v).collect();
@@ -149,8 +149,8 @@ fn load_key_error_names_the_setup_command() {
     std::env::set_var("HOME", &home);
     std::env::remove_var("TYPESAFEAI_API_KEY");
 
-    let err = ts::load_key(Some(Path::new("/nonexistent/code-map-key")))
-        .expect_err("no key anywhere");
+    let err =
+        ts::load_key(Some(Path::new("/nonexistent/code-map-key"))).expect_err("no key anywhere");
     assert!(err.to_string().contains("typesafe setup"));
 
     match prev_home {
