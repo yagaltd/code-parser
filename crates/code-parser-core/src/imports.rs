@@ -542,6 +542,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// Requires the `typescript` grammar: parses .ts fixtures end-to-end.
+    #[cfg(feature = "typescript")]
     #[test]
     fn e2e_parse_repo_fills_resolved_for_alias_fixture() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/ts/alias");
@@ -582,6 +584,8 @@ mod tests {
         assert_eq!(react.resolved, None);
     }
 
+    /// Requires the `typescript` grammar: parses .ts fixtures end-to-end.
+    #[cfg(feature = "typescript")]
     #[test]
     fn e2e_nested_tsconfigs_nearest_match_and_extends() {
         // Monorepo fixture: packages/a extends tsconfig.base.json (own

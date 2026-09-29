@@ -4,6 +4,25 @@ IR contract history, newest first. The current contract is
 [`ir_version: 4`](README.md#ir-shape-ir_version-4). Consumers that persist
 parsed output should re-ingest once per version bump (guard on `ir_version`).
 
+## 2026-09-29
+
+- **feat(code-map): new crate — query layer over the JSONL map** (M1–M4):
+  `refresh` (atomic snapshot),
+  `search` (IDF + fuzzy + `re:` regex, deterministic output, `tokens_est`),
+  `callers`/`callees`/`path` (BFS over IR edges + conservative globally-unique
+  inference tier, marked `inferred`; ambiguity surfaced, never guessed),
+  TypeSafe gate (feature `typesafe`: relevance ⊗ scope min-gate, 0.7/0.5/0.25
+  thresholds, content-hash verdict cache, interactive `typesafe setup`), and
+  the learning loop (`mark` + trails → `learn` → `gate-lexicon.json`,
+  holdout/min-samples/flip guardrails, consumed by default by `search`).
+- **fix(core): TS e2e import tests gated behind the `typescript` feature** —
+  `e2e_parse_repo_fills_resolved_for_alias_fixture` and
+  `e2e_nested_tsconfigs_nearest_match_and_extends` failed under default
+  features; they now skip cleanly (no contract change).
+
+- **ir_version stays 4** — code-map is a consumer; the IR contract is
+  untouched.
+
 ## 2026-09-28
 
 - **feat(core): incremental watch stream (`RepoState`)** — `watch` now emits

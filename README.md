@@ -4,6 +4,8 @@ Tree-sitter engine that parses source files into versioned `FileParseIR` — sym
 
 Parser always emits cards. The consumer chooses whether to store, lex, embed, or ignore them (ingest policy). There is no "parse without cards" mode.
 
+Ships with **`code-map`**: a zero-infra query layer over the JSONL map — keyword search, call-graph queries, and an optional TypeSafe gate with a self-learning lexicon. See [Code map](#code-map-code-map).
+
 Requires Rust **1.82+**. Contract history: [CHANGELOG](CHANGELOG.md).
 
 ## Contents
@@ -14,6 +16,7 @@ Requires Rust **1.82+**. Contract history: [CHANGELOG](CHANGELOG.md).
 - [Quick start](#quick-start)
 - [IR shape](#ir-shape-ir_version-4)
 - [Retrieval cards](#retrieval-cards)
+- [Code map (`code-map`)](#code-map-code-map)
 - [Library usage](#library-usage)
 - [Watch stream (incremental updates)](#watch-stream-incremental-updates)
 - [Resolution](#resolution)
@@ -27,6 +30,7 @@ Requires Rust **1.82+**. Contract history: [CHANGELOG](CHANGELOG.md).
 - `crates/code-parser-core` — tree-sitter engine: parse, extract, resolve, cards, watch, hash cache
 - `crates/code-parser-scip` — SCIP overlay producer: `rust-analyzer scip` out-of-process → resolved call bindings (cache by cargo fingerprint; committed fixture artifacts)
 - `crates/code-parser-cli` — thin CLI (`parse`, `parse-repo`, `watch`, `check`)
+- `crates/code-map` — query layer over the JSONL map: `refresh`, `search`, `callers`/`callees`/`path`, optional TypeSafe gate + learning loop
 
 ## Supported languages
 
@@ -57,6 +61,14 @@ cargo install --git https://github.com/yagaltd/code-parser code-parser-cli --fea
 
 The command is `code-parser`. `--features all` = Rust + TypeScript + JavaScript + Python + watcher; default is Rust only.
 
+The map query tool installs separately:
+
+```bash
+cargo install --path crates/code-map --features typesafe   # or omit the feature for no network deps
+```
+
+The command is `code-map`.
+
 ## Quick start
 
 ```bash
@@ -78,6 +90,16 @@ cargo run --features all -- watch . --emit jsonl
 
 # Validate a file parses without errors
 cargo run -- check src/main.rs
+
+# Build the map query tool (TypeSafe gate optional)
+cargo build --release -p code-map --features typesafe
+
+# Snapshot the repo to a queryable map (atomic swap, hash-cache fast)
+cargo run --release -p code-map -- refresh . -o code-map.jsonl
+
+# Query it: search + call graph — no server, no index
+cargo run --release -p code-map -- search "watch debounce" -m code-map.jsonl
+cargo run --release -p code-map -- callers parse_repo -m code-map.jsonl
 ```
 
 ## IR shape (`ir_version`: 4)
@@ -157,6 +179,45 @@ Mechanical, deterministic text for lexical search / optional later embeddings:
 The consumer maps these onto its own payloads/indexes under its ingest policy
 (store / lex / embed / ignore). The parser knows nothing about the consumer's
 node model.
+
+## Code map (`code-map`)
+
+A zero-infra query layer over the map: every command loads a `code-map.jsonl`
+(the `parse-repo --jsonl` output), answers, exits. No store, no server, no
+index — grep-scale fast, stateless by design.
+
+```bash
+code-map refresh . -o code-map.jsonl                # atomic snapshot (hash-cache fast)
+code-map search "watch debounce" -n 20              # IDF + fuzzy over cards/symbols
+code-map search "re:callee_file.*tsconfig" --json   # regex mode; --json adds tokens_est
+code-map callers parse_repo                         # reverse call edges
+code-map path main collect_source_files             # shortest path (BFS, hop-capped)
+```
+
+- **Search** ranks card/symbol text: rare-query-term weighting (IDF) plus
+  fuzzy on symbol names, deterministic tie-breaking (same map → same output).
+- **Graph** resolves the edges the IR already carries (in-file
+  `callee_local_key`, cross-file `callee_file` + exact `qualified_name`) and
+  adds a conservative inference tier: a cross-crate call like
+  `code_parser_core::parse_repo` binds to the unique symbol named
+  `parse_repo`, marked `(inferred)`. Ambiguous lookups list every match —
+  never guessed.
+- **TypeSafe gate** (feature `typesafe`): `search --json | code-map gate
+  --query "…"` filters the shortlist with two judgments per candidate
+  (relevance ⊗ scope, min-combined); verdicts are `inline` ≥ 0.7, `include`
+  ≥ 0.5, `lead` ≥ 0.25, else dropped. One-time setup:
+  `code-map typesafe setup` (paste the key; stored chmod 600 at
+  `~/.config/code-parser/typesafe.key`; `TYPESAFEAI_API_KEY` env works too).
+  Verdicts are cached by content hash — re-gates are API-free.
+- **Learning loop**: fresh gates append trails; `code-map mark "<query>"
+  <paths…>` records what you actually used; `code-map learn` folds both into
+  `~/.config/code-parser/learned/gate-lexicon.json` (holdout-validated,
+  min-samples guard, flip-dropped rules) which `search` consumes by default —
+  the lexicon answers first, free; the gate judges only the rest.
+
+Files: key `~/.config/code-parser/typesafe.key` · cache
+`~/.cache/code-parser/{verdicts,trails,usage}.jsonl` · lexicon
+`~/.config/code-parser/learned/gate-lexicon.json`.
 
 ## Library usage
 
