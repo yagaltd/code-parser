@@ -26,4 +26,10 @@ ureq = { version = "2", optional = true, default-features = false, features = ["
 
 [features]
 default = []
+all = [
+  "code-parser-core/rust",
+  "code-parser-core/typescript",
+  "code-parser-core/javascript",
+  "code-parser-core/python",
+]
 typesafe = ["dep:ureq"]
