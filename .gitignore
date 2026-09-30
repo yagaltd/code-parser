@@ -16,3 +16,4 @@ target/
 # Planning documents (ephemeral, not shipped)
 *_PLAN.md
 code-parser-v2.md
+.empryo

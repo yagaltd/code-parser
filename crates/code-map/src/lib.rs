@@ -11,6 +11,7 @@ pub mod graph;
 pub mod lexicon;
 pub mod refresh;
 pub mod search;
+pub mod snapshot;
 #[cfg(feature = "typesafe")]
 pub mod typesafe;
 

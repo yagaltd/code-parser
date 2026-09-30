@@ -99,6 +99,16 @@ enum Command {
         #[arg(long)]
         out: Option<PathBuf>,
     },
+    /// Budgeted map snapshot — the frozen system-prompt prefix for agents
+    /// (byte-identical across renders; hold with idle-TTL on the consumer side).
+    Snapshot {
+        /// Token budget, clamped 500..=8000.
+        #[arg(short = 'b', long, default_value_t = code_map::snapshot::DEFAULT_BUDGET)]
+        budget: u32,
+        /// Emit machine-readable JSON (content + metadata) instead of the raw render.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -315,6 +325,25 @@ fn main() -> Result<()> {
                 lex.stats.get("promoted").copied().unwrap_or(0),
                 lex.stats.get("demoted").copied().unwrap_or(0),
             );
+        }
+        Command::Snapshot { budget, json } => {
+            let irs = code_map::load_irs(&cli.map)?;
+            let (content, meta) = code_map::snapshot::render_with_meta(&irs, budget);
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "snapshot_version": meta.snapshot_version,
+                        "budget": meta.budget,
+                        "est_tokens": meta.est_tokens,
+                        "files": meta.files,
+                        "omitted": meta.omitted,
+                        "content": content,
+                    })
+                );
+            } else {
+                print!("{content}");
+            }
         }
     }
     Ok(())

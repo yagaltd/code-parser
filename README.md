@@ -190,6 +190,7 @@ index — grep-scale fast, stateless by design.
 
 ```bash
 code-map refresh . -o code-map.jsonl                # atomic snapshot (hash-cache fast)
+code-map snapshot -b 2500                          # budgeted map for agent system prompts
 code-map search "watch debounce" -n 20              # IDF + fuzzy over cards/symbols
 code-map search "re:callee_file.*tsconfig" --json   # regex mode; --json adds tokens_est
 code-map callers parse_repo                         # reverse call edges
@@ -219,6 +220,14 @@ code-map path main collect_source_files             # shortest path (BFS, hop-ca
   `~/.config/code-parser/learned/gate-lexicon.json` (holdout-validated,
   min-samples guard, flip-dropped rules) which `search` consumes by default —
   the lexicon answers first, free; the gate judges only the rest.
+- **Budgeted snapshot** (`code-map snapshot`): a deterministic, token-budgeted
+  render of the whole map (default 2500 tokens, clamped 500..=8000) for agents
+  that inject the map into a system prompt. Byte-identical across renders —
+  no clock, no randomness, input-order independent — so the prefix stays
+  provider-cache-stable. Hold it with idle-TTL semantics (`snapshot::Snapshot`):
+  hot while read, rebuilt after inactivity; never patched in place. When the
+  budget is tight, symbol-rich hubs keep their symbols and the tail degrades
+  to file lines, then to an omitted-count footer.
 
 Files: key `~/.config/code-parser/typesafe.key` · cache
 `~/.cache/code-parser/{verdicts,trails,usage}.jsonl` · lexicon

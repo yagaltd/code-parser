@@ -4,6 +4,20 @@ IR contract history, newest first. The current contract is
 [`ir_version: 5`](README.md#ir-shape-ir_version-5). Consumers that persist
 parsed output should re-ingest once per version bump (guard on `ir_version`).
 
+## 2026-09-30
+
+- **feat(code-map): budgeted map snapshot — the frozen system-prompt prefix**
+  (`code-map snapshot [-b N] [--json]`, `snapshot::Snapshot`). Deterministic
+  render under a token budget (default 2500, clamped 500..=8000; tokens =
+  len/4, the card convention): byte-identical across renders, input-order
+  independent, no wall-clock — safe to freeze as an agent's system-prompt
+  prefix for provider prompt caching. Under budget pressure, symbol-rich
+  hubs keep symbols (priority: symbol count desc, path asc) and the tail
+  degrades to bare file lines, then an omitted-count footer. Test symbols
+  are excluded from the render. `Snapshot` adds idle-TTL semantics: hot
+  while read, expires after inactivity — never patched in place. This repo
+  renders at ~1.2k tokens, 39 files, zero omissions.
+
 ## 2026-09-29
 
 - **feat(ir): `ir_version` 5 — module-level `docstring` on `FileParseIR`**
