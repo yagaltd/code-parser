@@ -33,3 +33,4 @@ all = [
   "code-parser-core/python",
 ]
 typesafe = ["dep:ureq"]
+typellm = ["dep:ureq"]

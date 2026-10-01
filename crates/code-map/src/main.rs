@@ -80,6 +80,11 @@ enum Command {
         #[command(subcommand)]
         cmd: TypesafeCmd,
     },
+    /// TypeLLM provider: setup + verify (free text, thinking, images).
+    Typellm {
+        #[command(subcommand)]
+        cmd: TypellmCmd,
+    },
     /// Record which candidates you actually used for a query (feeds `learn`).
     Mark {
         /// The query the results came from (joined by normalized text).
@@ -115,6 +120,22 @@ enum Command {
 enum TypesafeCmd {
     /// Read the API key from stdin: `echo $TYPESAFE_API_KEY | code-map typesafe setup`
     Setup {
+        #[arg(long)]
+        key_file: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum TypellmCmd {
+    /// Read the API key from stdin: `echo $TYPELLM_API_KEY | code-map typellm setup`
+    Setup {
+        /// API key file (default: ~/.config/code-parser/typellm.key)
+        #[arg(long)]
+        key_file: Option<PathBuf>,
+    },
+    /// One tiny /v1/generate call to prove the key and endpoint work.
+    Verify {
+        /// API key file (default: ~/.config/code-parser/typellm.key)
         #[arg(long)]
         key_file: Option<PathBuf>,
     },
@@ -298,6 +319,15 @@ fn main() -> Result<()> {
                 )
             }
         }
+        #[cfg(feature = "typellm")]
+        Command::Typellm { cmd } => match cmd {
+            TypellmCmd::Setup { key_file } => code_map::typellm::run_setup(key_file.as_deref())?,
+            TypellmCmd::Verify { key_file } => code_map::typellm::run_verify(key_file.as_deref())?,
+        },
+        #[cfg(not(feature = "typellm"))]
+        Command::Typellm { .. } => anyhow::bail!(
+            "typellm requires the 'typellm' feature: cargo build --features typellm"
+        ),
         Command::Mark { query, paths } => {
             if paths.is_empty() {
                 anyhow::bail!("mark needs at least one path");

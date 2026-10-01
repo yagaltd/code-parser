@@ -14,7 +14,8 @@ pub mod search;
 pub mod snapshot;
 #[cfg(feature = "typesafe")]
 pub mod typesafe;
-
+#[cfg(feature = "typellm")]
+pub mod typellm;
 use std::path::Path;
 
 use anyhow::{Context, Result};
